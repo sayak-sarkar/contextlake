@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -351,11 +351,11 @@ contextlake<span class="w"> </span>schedule<span class="w"> </span>--job<span cl
 parses everything before <code>--</code> as its own flags and action; without it, a flag meant for the
 trailing command is read as a flag of <code>schedule</code> itself and the whole thing fails:</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>schedule<span class="w"> </span>interval<span class="w"> </span>6h<span class="w"> </span>run<span class="w"> </span>kb<span class="w"> </span>wiki<span class="w"> </span>--force
-<span class="go">✗ '--force' isn't a flag on 'schedule'</span>
+<span class="go">✗ &#39;--force&#39; isn&#39;t a flag on &#39;schedule&#39;</span>
 
-<span class="go">It's used by: bootstrap, kb embed, kb index, init, kb steer, kb wiki.</span>
+<span class="go">It&#39;s used by: bootstrap, kb embed, kb index, init, kb steer, kb wiki.</span>
 
-<span class="go">Run 'contextlake schedule --help' to see schedule's own flags.</span>
+<span class="go">Run &#39;contextlake schedule --help&#39; to see schedule&#39;s own flags.</span>
 </code></pre></div>
 <p>A flag that no other contextlake command uses fails the same way, with <code>Unknown flag: '&lt;flag&gt;'
 (on 'schedule')</code> instead. Either way, the fix is the same: add <code>--</code>.</p>
@@ -571,7 +571,7 @@ but is malformed fails here instead of in your cluster or account.</p>
 persistent storage would mean every cycle re-indexes the whole fleet from scratch, so <code>schedule
 run</code> refuses:</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>contextlake<span class="w"> </span>schedule<span class="w"> </span>run
-<span class="go">Refusing to run: this container's state does not survive a restart, so every run would re-index the whole fleet from scratch.</span>
+<span class="go">Refusing to run: this container&#39;s state does not survive a restart, so every run would re-index the whole fleet from scratch.</span>
 <span class="go">  Mount a volume at the cache directory (a PVC on Kubernetes, EFS on AWS, Azure Files on Azure), or pass --allow-ephemeral if that is what you want.</span>
 </code></pre></div>
 <p>The check is whether the cache directory sits on its own mount point, not what filesystem type it
@@ -722,6 +722,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

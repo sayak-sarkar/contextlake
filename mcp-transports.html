@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -186,7 +186,7 @@ process anywhere you did not put it.</p>
 useless when a config file has to hold it. Set <code>CONTEXTLAKE_MCP_TOKEN</code> and the server uses that
 value instead of minting one (an empty or whitespace-only value is treated as unset, and a fresh
 token is minted, it never turns authentication off):</p>
-<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTEXTLAKE_MCP_TOKEN</span><span class="o">=</span><span class="s1">'pick-your-own-long-random-string'</span>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">CONTEXTLAKE_MCP_TOKEN</span><span class="o">=</span><span class="s1">&#39;pick-your-own-long-random-string&#39;</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>http
 </code></pre></div>
 <p><strong>Origin and Host are validated</strong> on every request, as the MCP spec requires for HTTP transports:
@@ -243,7 +243,7 @@ error naming the limit as you typed it:</p>
 content-type: application/json
 retry-after: 20
 
-{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"rate limit exceeded for this key: 3/min. retry in 20s"}}
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:null,&quot;error&quot;:{&quot;code&quot;:-32000,&quot;message&quot;:&quot;rate limit exceeded for this key: 3/min. retry in 20s&quot;}}
 </code></pre></div>
 <p>The refusal happens at the gate, before the request reaches any tool, so <code>tools/list</code> and the
 <code>kb://stats</code> resource are bounded too. A key with no valid credential gets <code>401</code> and is never
@@ -251,9 +251,9 @@ counted against any quota.</p>
 <h3 id="defaults-for-every-key">Defaults for every key<a class="anchor" href="#defaults-for-every-key" title="Link to this section">#</a></h3>
 <p>Set them once in <code>~/.contextlake/kb.toml</code> (or a file you name with <code>--config</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[serve]</span>
-<span class="n">default_rate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"60/min"</span>
-<span class="n">default_burst</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"20"</span>
-<span class="n">default_cost_budget</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"30s/min"</span>
+<span class="n">default_rate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;60/min&quot;</span>
+<span class="n">default_burst</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;20&quot;</span>
+<span class="n">default_cost_budget</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;30s/min&quot;</span>
 </code></pre></div>
 <p><strong>All three are unset out of the box</strong>, so nothing starts limiting a key that worked before.
 The values above are a reasonable starting point, not what you get by default.</p>
@@ -498,6 +498,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

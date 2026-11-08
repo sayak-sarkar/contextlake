@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -131,7 +131,7 @@ and indexes <strong>each</strong> git repository under it separately, under its 
 the wrong way round is the most expensive mistake available here, so a directory that is not itself a
 git repository but holds some is <strong>refused</strong>, with the command that fits what was found:</p>
 <div class="highlight"><pre><span></span><code>$ contextlake kb index ~/work
-✗ /home/you/work isn't itself a git repo, but contains 20 git working tree(s) at depths 1-2
+✗ /home/you/work isn&#39;t itself a git repo, but contains 20 git working tree(s) at depths 1-2
   (alpha, beta, billing-core, frontend, gateway, …); no indexable file lies outside them.
   That is a workspace mirroring several repositories. Indexing it this way files all of them
   under ONE id, so every symbol they hold is in the graph twice and the copies cannot be told apart.
@@ -410,7 +410,7 @@ inside a file: tables, config keys, Terraform resources, XSD and XSL items, ADRs
 and web routes. The path is written one way on every system (<code>/</code> separators, no leading <code>./</code>),
 so Linux and Windows give a file the same id. SQL object names still ignore case, as SQL does.</p>
 <p><code>kb lint</code> names each such node, with the repo and every path it can see:</p>
-<div class="highlight"><pre><span></span><code>  shared file node: &lt;repo&gt;: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (indexed before parser 13; `kb index` re-indexes it, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command's exit code)
+<div class="highlight"><pre><span></span><code>  shared file node: &lt;repo&gt;: A_B.py, a-b.py, a_b.py share one node, so 2 of them are missing from the graph (indexed before parser 13; `kb index` re-indexes it, see docs/indexing-the-code-graph.md#shared-file-nodes; not counted in this command&#39;s exit code)
 </code></pre></div>
 <p>When two repos share the node, the line says <code>across repos</code> and puts the repo in front of each
 path. The summary line ends with <code>N shared file node(s)</code>.</p>
@@ -453,7 +453,7 @@ edges it took 0.45 s.</p>
 </table>
 <p>The full node and edge model, language by language, is in <a href="code-graph-model">The code graph model</a>.</p>
 <h2 id="what-an-index-produces">What an index produces<a class="anchor" href="#what-an-index-produces" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=07152f40"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=88fb540c"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -580,6 +580,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -130,7 +130,7 @@ out: they report on this machine and this process, not on your code.</p>
 <p>The dashboard reads your indexed store. If you've already run <code>contextlake kb index</code> (or
 <code>contextlake bootstrap</code>), you're set. <strong>Just want to look around first?</strong> Every screen
 below works against a bundled, generic demo fleet, no setup, no real data:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--sample<span class="w">      </span><span class="c1"># a fictional "acme" fleet, served live</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>dashboard<span class="w"> </span>--serve<span class="w"> </span>--sample<span class="w">      </span><span class="c1"># a fictional &quot;acme&quot; fleet, served live</span>
 </code></pre></div>
 <blockquote>
 <p>A static build of this same <code>--sample</code> export is also hosted as a public, read-only
@@ -255,7 +255,7 @@ connector items.</p>
 <p><code>--anonymize</code> covers one invocation. To make it the standing answer, set it once:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># ~/.contextlake/kb.toml</span>
 <span class="k">[kb]</span>
-<span class="n">anonymize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"always"</span><span class="w">     </span><span class="c1"># or "never", the default</span>
+<span class="n">anonymize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;always&quot;</span><span class="w">     </span><span class="c1"># or &quot;never&quot;, the default</span>
 </code></pre></div>
 <p><code>"always"</code> hides identities on the served dashboard and in every <code>--site</code> export without
 anyone having to remember the flag. It is an explicit setting rather than something
@@ -776,6 +776,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -107,10 +107,10 @@ needs a C or C++ compiler and is slow but still finishes. The Dockerfile grammar
 fails, it is a grammar, not contextlake itself and not the built-in wiki LLM (<code>[llm-local]</code>
 never builds from source, see the next section). Either install your platform's build tools
 and let it finish, or pin the install to wheels only:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-U<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span><span class="s2">"contextlake[kb-full]"</span>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-U<span class="w"> </span>--only-binary<span class="w"> </span>:all:<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span>
 </code></pre></div>
 <h2 id="the-built-in-wiki-llm-is-not-installed">The built-in wiki LLM is not installed<a class="anchor" href="#the-built-in-wiki-llm-is-not-installed" title="Link to this section">#</a></h2>
-<div class="highlight"><pre><span></span><code>The built-in LLM needs the 'llm-local' extra (openvino-genai).
+<div class="highlight"><pre><span></span><code>The built-in LLM needs the &#39;llm-local&#39; extra (openvino-genai).
 </code></pre></div>
 <p>Install it into the interpreter contextlake is running in:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">          </span><span class="c1"># --dry-run prints the command and stops</span>
@@ -128,14 +128,14 @@ depends on.</p>
 <p>If you would rather not run a local model at all, use Ollama for the wiki tier
 (<code>--llm ollama</code>).</p>
 <h2 id="kb-ingest-skipped-my-pdfs"><code>kb ingest</code> skipped my PDFs<a class="anchor" href="#kb-ingest-skipped-my-pdfs" title="Link to this section">#</a></h2>
-<div class="highlight"><pre><span></span><code>files: skipped 4 PDF(s) -- reading a PDF's text layer needs the 'kb-pdf' extra (pypdf),
-  which is not installed. Install it with: pip install 'contextlake[kb-pdf]'.
+<div class="highlight"><pre><span></span><code>files: skipped 4 PDF(s) -- reading a PDF&#39;s text layer needs the &#39;kb-pdf&#39; extra (pypdf),
+  which is not installed. Install it with: pip install &#39;contextlake[kb-pdf]&#39;.
 </code></pre></div>
 <p>Do that, then re-run the ingest. <code>[kb-pdf]</code> is a small pure-Python extra and is not part of
 <code>[kb-full]</code>, see <a href="installing#the-extras-and-which-one-you-want">the extras table</a>.</p>
 <p>A different message means the PDFs were read and refused for a stated reason, one per file:</p>
 <div class="highlight"><pre><span></span><code>files: skipping scan.pdf -- no extractable text (12 page(s) read, all empty). contextlake
-  reads a PDF's text layer only; a scanned or image-only PDF has none and is not OCR'd.
+  reads a PDF&#39;s text layer only; a scanned or image-only PDF has none and is not OCR&#39;d.
 </code></pre></div>
 <p>That PDF holds pictures of words, not words. contextlake does not OCR, so there is nothing for it
 to ingest. It declines rather than storing an empty document that would look like knowledge in
@@ -150,7 +150,7 @@ document the PDF was made from.</p>
 <h2 id="a-docker-run-fails-with-a-permission-error-on-the-mount">A Docker run fails with a permission error on the mount<a class="anchor" href="#a-docker-run-fails-with-a-permission-error-on-the-mount" title="Link to this section">#</a></h2>
 <p>The image runs as uid 1000, and a bind mount keeps the host's ownership, so if your host account is
 not uid 1000 the container cannot write the store. Pass your own ids:</p>
-<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-u<span class="w"> </span><span class="s2">"</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="s2">:</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="s2">"</span><span class="w"> </span>-v<span class="w"> </span><span class="s2">"</span><span class="nv">$PWD</span><span class="s2">:/work"</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>-u<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span><span class="s2">:</span><span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">:/work&quot;</span><span class="w"> </span>ghcr.io/sayak-sarkar/contextlake<span class="w"> </span>kb<span class="w"> </span>index
 </code></pre></div>
 <p>It fails rather than falling back on purpose. Before 5.1.0 the store went inside the container
 instead, so the run looked like it succeeded and the index vanished when the container exited.</p>
@@ -166,7 +166,7 @@ See <a href="installing#the-standalone-binary">The standalone binary</a>.</p>
 and pip refuses to write into it. <code>--fix</code> reports this rather than retrying, because the fix
 is where contextlake lives, not which flag you pass:</p>
 <div class="highlight"><pre><span></span><code>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>.venv<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>.<span class="w"> </span>.venv/bin/activate
-pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"contextlake[kb-full]"</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span>
 </code></pre></div>
 <p>or let <code>pipx</code> own the environment: <code>pipx install "contextlake[kb-full]"</code>. Never reach for
 <code>--break-system-packages</code>; it does what it says.</p>
@@ -318,6 +318,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

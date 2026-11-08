@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -165,7 +165,7 @@ and every one of them is a real node with a real file and line, so an answer abo
 asked reads as cited and checkable.</p>
 <p><code>--retriever semantic|hybrid</code> refuses a query when <strong>not one</strong> of its content terms
 appears anywhere in the index, and names the terms it could not find:</p>
-<div class="highlight"><pre><span></span><code>No matches for 'SamlAssertionValidator': nothing indexed matches 'SamlAssertionValidator'.
+<div class="highlight"><pre><span></span><code>No matches for &#39;SamlAssertionValidator&#39;: nothing indexed matches &#39;SamlAssertionValidator&#39;.
   No results are shown rather than the nearest k, which would all be real nodes and none of
   them about this query. Index the repo that should answer it, or retry with a term the graph knows.
 </code></pre></div>
@@ -185,9 +185,9 @@ notion of "no match" and needs no floor.</p>
 <p><code>contextlake kb eval</code> keeps retrieval falsifiable. Point it at a <strong>golden-query JSON file</strong>, each entry pairs
 a query with the node ids it should return:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">"queries"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">"query"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ForecastService"</span><span class="p">,</span><span class="w"> </span><span class="nt">"expected"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"demo_app_forecastservice"</span><span class="p">]},</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">"query"</span><span class="p">:</span><span class="w"> </span><span class="s2">"load readings"</span><span class="p">,</span><span class="w"> </span><span class="nt">"expected"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"load_readings"</span><span class="p">],</span><span class="w"> </span><span class="nt">"match"</span><span class="p">:</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"function"</span><span class="p">}</span>
+<span class="w">  </span><span class="nt">&quot;queries&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ForecastService&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;demo_app_forecastservice&quot;</span><span class="p">]},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;load readings&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;expected&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;load_readings&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;match&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;name&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;function&quot;</span><span class="p">}</span>
 <span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
@@ -344,6 +344,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

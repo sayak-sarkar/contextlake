@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -184,9 +184,9 @@ completeness and clarity, and a chairman publishes only pages above a configurab
 drafts and grades its own work, and the tiny built-in 0.5B in particular tends to rubber-stamp almost
 everything. To gate a cheap local generator with a stronger judge, point the council at its own provider:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[llm]</span>
-<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"builtin"</span><span class="w">           </span><span class="c1"># keep generation local and free</span>
-<span class="n">review_provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"anthropic"</span><span class="w">  </span><span class="c1"># …but have a real model decide what gets published</span>
-<span class="n">review_model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"claude-haiku-4-5"</span><span class="w">   </span><span class="c1"># optional; defaults to the provider's own default</span>
+<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;builtin&quot;</span><span class="w">           </span><span class="c1"># keep generation local and free</span>
+<span class="n">review_provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;anthropic&quot;</span><span class="w">  </span><span class="c1"># …but have a real model decide what gets published</span>
+<span class="n">review_model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;claude-haiku-4-5&quot;</span><span class="w">   </span><span class="c1"># optional; defaults to the provider&#39;s own default</span>
 </code></pre></div>
 <p><code>review_provider</code> takes the same values as <code>provider</code>, and always wins. So the reverse split
 also works: generate with a strong model, review with a cheap one.</p>
@@ -307,10 +307,10 @@ rejection, with the count of reviewers whose reply did not parse.</p>
 <h2 id="steering-it-from-the-repository-contextlakewikitoml">Steering it from the repository: <code>.contextlake/wiki.toml</code><a class="anchor" href="#steering-it-from-the-repository-contextlakewikitoml" title="Link to this section">#</a></h2>
 <p>A repository can have a say in its own page. Drop a <code>.contextlake/wiki.toml</code> in its root:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Free text the page quotes, attributed, above the sections.</span>
-<span class="n">notes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"This is a thin client. The behaviour lives in the server repo; prefer its docs."</span>
+<span class="n">notes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;This is a thin client. The behaviour lives in the server repo; prefer its docs.&quot;</span>
 
 <span class="c1"># Optional. Names the subsystems that get their own page, replacing the automatic choice.</span>
-<span class="n">pages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"api"</span><span class="p">,</span><span class="w"> </span><span class="s2">"workers"</span><span class="p">]</span>
+<span class="n">pages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;api&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;workers&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong><code>notes</code> is quoted, never absorbed.</strong> Everything else on the page is derived from the graph;
 this is the repository asserting something about itself, and the page says so in those words
@@ -546,6 +546,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -125,15 +125,15 @@ full command list. Shell tab-completion is registered for you on first run; see
 --workspace</code>) accepts <code>--repos PATTERN</code>, a comma-separated <strong>glob</strong> filter over your
 repo paths, so you can mirror and index just a handful instead of the whole group.
 Ideal for a demo or a try-before-fleet run:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--repos<span class="w"> </span><span class="s2">"team/api,sensors/*,frontend/*"</span><span class="w">  </span><span class="c1"># mirror + index just these</span>
-contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">"team/*"</span><span class="w">                       </span><span class="c1"># sync one namespace</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w"> </span>--repos<span class="w"> </span><span class="s2">"sensors/core,team/api"</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>bootstrap<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;team/api,sensors/*,frontend/*&quot;</span><span class="w">  </span><span class="c1"># mirror + index just these</span>
+contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;team/*&quot;</span><span class="w">                       </span><span class="c1"># sync one namespace</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w"> </span>--workspace<span class="w"> </span>~/work<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;sensors/core,team/api&quot;</span>
 </code></pre></div>
 <p>Each pattern is matched against the repo's group-qualified path and its local path,
 case-insensitively. <strong>Patterns are anchored</strong>: <code>--repos api</code> selects a repo named
 exactly <code>api</code>, never <code>forecast-api</code> or <code>api-gateway</code>. For a substring match, say so
 with a glob:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">"*api*"</span><span class="w">     </span><span class="c1"># everything with "api" anywhere in its path</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;*api*&quot;</span><span class="w">     </span><span class="c1"># everything with &quot;api&quot; anywhere in its path</span>
 </code></pre></div>
 <p>That is the way round it is because a filter that selects <em>more</em> than you asked for is
 the expensive mistake: you discover it after a fleet-wide run you did not want. Earlier
@@ -188,8 +188,8 @@ available:</p>
 <code>odd*name</code>, but it also matches <code>oddXname</code>, so it cannot pick out the first one on its
 own.</p>
 <p>Use a single-character set instead, which treats the wildcard as an ordinary character:</p>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">"odd[*]name"</span><span class="w">   </span><span class="c1"># only the repo literally named odd*name</span>
-contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">"a[?]b"</span><span class="w">        </span><span class="c1"># only the repo literally named a?b</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;odd[*]name&quot;</span><span class="w">   </span><span class="c1"># only the repo literally named odd*name</span>
+contextlake<span class="w"> </span>mirror<span class="w"> </span>sync<span class="w"> </span>--repos<span class="w"> </span><span class="s2">&quot;a[?]b&quot;</span><span class="w">        </span><span class="c1"># only the repo literally named a?b</span>
 </code></pre></div>
 <p>This is rare: <code>*</code> and <code>?</code> are legal in a path on Linux and macOS, and not on Windows.</p>
 <p>The filter scopes the whole pipeline: <code>fetch</code> narrows the cached project list, and
@@ -364,7 +364,7 @@ usually exists in a handful of repositories out of hundreds, so the run answers 
 carry it". Without the report, several hundred repositories would read as though they had
 done what was asked.</p>
 <div class="highlight"><pre><span></span><code>✓ Branch switch complete: 4 switched, 0 already, 0 skipped, 0 empty, 0 dry-run, 396 unpinned, 0 errors
-  396 repo(s) have no branch 'release/24.1'; each is on its most active branch instead
+  396 repo(s) have no branch &#39;release/24.1&#39;; each is on its most active branch instead
 </code></pre></div>
 <p>The name is matched exactly. <code>--branch release/24</code> does not select <code>release/24.1</code>.</p>
 <p>Set it once in the config instead of passing it every run:</p>
@@ -704,6 +704,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -163,11 +163,11 @@ rest still print; only the color wrapped around them is gone.</p>
 wrong, then say what to do about it.</p>
 <p>A mistyped command suggests the closest real one instead of dumping the full command list:</p>
 <div class="highlight"><pre><span></span><code>$ contextlake fetc
-✗ Unknown command: 'fetc'
+✗ Unknown command: &#39;fetc&#39;
 
 Did you mean: mirror fetch?
 
-Run 'contextlake --help' to see all commands.
+Run &#39;contextlake --help&#39; to see all commands.
 </code></pre></div>
 <p>The match runs against every command name <strong>and its aliases</strong> (<code>blast-radius</code> for <code>impact</code>, <code>who-knows</code>
 for <code>owners</code>), then shows the canonical, namespaced verb, matching what <code>--help</code> teaches. This is also
@@ -179,32 +179,32 @@ prefix is treated the same as an unknown flag, so a typo fails loudly instead of
 <p>A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
 letter, not a shortened prefix) does get a suggestion, scoped to that command's own flags:</p>
 <div class="highlight"><pre><span></span><code>$ contextlake kb index --worksapce .
-✗ Unknown flag: '--worksapce'
+✗ Unknown flag: &#39;--worksapce&#39;
 
 Did you mean: --workspace?
 </code></pre></div>
 <p>A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
 reporting it as unrecognized:</p>
 <div class="highlight"><pre><span></span><code>$ contextlake bootstrap --local
-✗ '--local' isn't a flag on 'bootstrap'
+✗ &#39;--local&#39; isn&#39;t a flag on &#39;bootstrap&#39;
 
-It's used by: init, kb source.
+It&#39;s used by: init, kb source.
 
-Run 'contextlake bootstrap --help' to see bootstrap's own flags.
+Run &#39;contextlake bootstrap --help&#39; to see bootstrap&#39;s own flags.
 </code></pre></div>
 <p>A value-taking flag immediately followed by another recognized flag (its value was left out, so the next
 flag lands where the value should be) names the real problem instead of arguing you forgot a value
 entirely:</p>
 <div class="highlight"><pre><span></span><code>$ contextlake kb dashboard --serve --workspace --open
-✗ '--workspace' needs a value, but the next token ('--open') is itself a recognized flag
+✗ &#39;--workspace&#39; needs a value, but the next token (&#39;--open&#39;) is itself a recognized flag
 
-Put the value right after --workspace, e.g. '--workspace &lt;value&gt; --open'.
+Put the value right after --workspace, e.g. &#39;--workspace &lt;value&gt; --open&#39;.
 </code></pre></div>
 <h2 id="machine-readable-logs-log-format-json">Machine-readable logs: <code>--log-format json</code><a class="anchor" href="#machine-readable-logs-log-format-json" title="Link to this section">#</a></h2>
 <p>Everything above describes output composed for a person. When the reader is a log collector instead
 (the systemd timer in <code>examples/</code>, a cron wrapper, CI), <code>--log-format json</code> prints one JSON object per
 line and nothing else:</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"ts"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-08-04T05:45:19Z"</span><span class="p">,</span><span class="w"> </span><span class="nt">"level"</span><span class="p">:</span><span class="w"> </span><span class="s2">"INFO"</span><span class="p">,</span><span class="w"> </span><span class="nt">"msg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[1/12] ✓ team/api: Cloned"</span><span class="p">,</span><span class="w"> </span><span class="nt">"run_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"bcd5bd3d69cb"</span><span class="p">,</span><span class="w"> </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"mirror clone"</span><span class="p">,</span><span class="w"> </span><span class="nt">"repo"</span><span class="p">:</span><span class="w"> </span><span class="s2">"team/api"</span><span class="p">,</span><span class="w"> </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span><span class="w"> </span><span class="nt">"duration_ms"</span><span class="p">:</span><span class="w"> </span><span class="mi">812</span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;ts&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-08-04T05:45:19Z&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;level&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;INFO&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;msg&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;[1/12] ✓ team/api: Cloned&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;run_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bcd5bd3d69cb&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;mirror clone&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;repo&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;team/api&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;duration_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">812</span><span class="p">}</span>
 </code></pre></div>
 <ul>
 <li><strong><code>msg</code></strong> is the same composed line a person would have seen, counter and glyph included, not a bare
@@ -241,14 +241,14 @@ cryptographic guarantee: a short, guessable repository name can be confirmed by 
 <p><code>--metrics-file PATH</code> writes Prometheus <a href="https://github.com/prometheus/node_exporter#textfile-collector" target="_blank" rel="noopener">textfile-collector<span class="ext-arrow" aria-hidden="true">↗</span></a>
 output after the run, so the shipped systemd timer is monitorable with no exporter process of its own.
 Point node_exporter's <code>--collector.textfile.directory</code> at the file's directory and name the file <code>.prom</code>:</p>
-<div class="highlight"><pre><span></span><code>contextlake_run_duration_seconds{command="mirror sync"} 42.318
-contextlake_run_exit_code{command="mirror sync"} 0
-contextlake_repos{command="mirror sync",status="ok"} 480
-contextlake_repos{command="mirror sync",status="failed"} 0
-contextlake_repos{command="mirror sync",status="skipped"} 3
+<div class="highlight"><pre><span></span><code>contextlake_run_duration_seconds{command=&quot;mirror sync&quot;} 42.318
+contextlake_run_exit_code{command=&quot;mirror sync&quot;} 0
+contextlake_repos{command=&quot;mirror sync&quot;,status=&quot;ok&quot;} 480
+contextlake_repos{command=&quot;mirror sync&quot;,status=&quot;failed&quot;} 0
+contextlake_repos{command=&quot;mirror sync&quot;,status=&quot;skipped&quot;} 3
 contextlake_graph_nodes 128394
 contextlake_graph_edges 214005
-contextlake_last_success_timestamp_seconds{command="mirror sync"} 1785802519
+contextlake_last_success_timestamp_seconds{command=&quot;mirror sync&quot;} 1785802519
 </code></pre></div>
 <p>Two behaviours worth knowing.</p>
 <p><strong>A failing run carries <code>contextlake_last_success_timestamp_seconds</code> forward</strong> rather than
@@ -485,6 +485,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -103,11 +103,11 @@ fix its permissions and run <code>contextlake completion</code> again. <code>con
 because its config is already written by then.</p>
 <p>Whichever route, one of these is written once:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># bash, appended to ~/.bashrc</span>
-<span class="nb">eval</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">"</span>
+<span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">&quot;</span>
 
 <span class="c1"># zsh, appended to ~/.zshrc (needs bashcompinit; most zsh setups already load it)</span>
 autoload<span class="w"> </span>-U<span class="w"> </span>bashcompinit<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>bashcompinit
-<span class="nb">eval</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">"</span>
+<span class="nb">eval</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>register-python-argcomplete<span class="w"> </span>contextlake<span class="k">)</span><span class="s2">&quot;</span>
 
 <span class="c1"># fish, a dedicated file, written once</span>
 register-python-argcomplete<span class="w"> </span>--shell<span class="w"> </span>fish<span class="w"> </span>contextlake<span class="w"> </span>&gt;<span class="w"> </span>~/.config/fish/completions/contextlake.fish
@@ -500,9 +500,9 @@ revoking one takes effect on the next request with no restart.</p>
 <div class="highlight"><pre><span></span><code>contextlake kb keys create alice-laptop --expires 90d
 contextlake kb keys list
 contextlake kb keys show k_4f2a91
-contextlake kb keys revoke k_4f2a91 --reason "laptop returned"
+contextlake kb keys revoke k_4f2a91 --reason &quot;laptop returned&quot;
 contextlake kb keys rotate k_4f2a91 --overlap 24h
-printf '%s' "$KEY" | contextlake kb keys check
+printf &#39;%s&#39; &quot;$KEY&quot; | contextlake kb keys check
 contextlake kb keys prune --before 2026-01-01
 contextlake kb keys usage --since 24h
 </code></pre></div>
@@ -831,6 +831,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

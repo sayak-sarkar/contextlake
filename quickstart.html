@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -87,7 +87,7 @@ Everything beyond the mirror is optional. This quickstart turns on four things:<
 <p>You need no GitLab and no config file to try contextlake on a repo you already have. Run these
 in that repo's directory:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>index<span class="w">                     </span><span class="c1"># parse the current repo into a local knowledge graph</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">   </span><span class="c1"># open the graph (it names your repo's own view next)</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">   </span><span class="c1"># open the graph (it names your repo&#39;s own view next)</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>serve<span class="w">                     </span><span class="c1"># or serve it to your AI editor over MCP</span>
 </code></pre></div>
 <ul>
@@ -112,7 +112,7 @@ fleet path below.</p>
   <strong><code>glab</code></strong> (<code>glab auth login</code>) works instead of a token.</li>
 </ul>
 <h2 id="2-install">2. Install<a class="anchor" href="#2-install" title="Link to this section">#</a></h2>
-<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span><span class="s2">"contextlake[kb-full]"</span>
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;contextlake[kb-full]&quot;</span>
 </code></pre></div>
 <p><code>pipx</code> keeps contextlake in its own environment and still puts the command on your PATH.
 <code>[kb-full]</code> is an extra, an optional add-on: a group of packages you install with contextlake. This one
@@ -154,13 +154,13 @@ of <code>~/</code>; every subdirectory underneath it inherits it automatically (
 <p><strong>Knowledge-layer config</strong>, <code>~/.contextlake/kb.toml</code> (copy
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/kb.toml.example" target="_blank" rel="noopener"><code>examples/kb.toml.example</code><span class="ext-arrow" aria-hidden="true">↗</span></a> and keep what you need):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[kb]</span>
-<span class="n">store_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"~/.contextlake/kb"</span>
+<span class="n">store_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;~/.contextlake/kb&quot;</span>
 
 <span class="c1"># Link each repo to its open GitLab merge requests + issues (uses your glab login):</span>
 <span class="k">[[sources]]</span>
-<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"gitlab"</span>
-<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"gitlab"</span>
-<span class="n">group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"your-gitlab-group"</span>
+<span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gitlab&quot;</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gitlab&quot;</span>
+<span class="n">group</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;your-gitlab-group&quot;</span>
 </code></pre></div>
 <p>Semantic search (<code>[embeddings]</code>) is on by default and needs a provider: a local Ollama, <strong>any
 OpenAI-compatible endpoint</strong> (hosted key or a local server like LM Studio / Jan), or the built-in
@@ -315,6 +315,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

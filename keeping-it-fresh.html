@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -298,13 +298,13 @@ directory, so make it first with <code>mkdir -p ~/.contextlake</code>.</p>
 <a href="https://github.com/sayak-sarkar/contextlake/blob/main/examples/contextlake.timer" target="_blank" rel="noopener"><code>examples/contextlake.timer</code><span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
 <h3 id="more-than-one-workspace">More than one workspace<a class="anchor" href="#more-than-one-workspace" title="Link to this section">#</a></h3>
 <p>Give each workspace its own config file and name it explicitly:</p>
-<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_primary.ini<span class="w"> </span><span class="s">&lt;&lt; 'EOF'</span>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_primary.ini<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
 <span class="s">[contextlake]</span>
 <span class="s">work_dir = ~/work</span>
 <span class="s">gitlab_group = example-group-primary</span>
 <span class="s">EOF</span>
 
-cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_secondary.ini<span class="w"> </span><span class="s">&lt;&lt; 'EOF'</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>~/.contextlake_secondary.ini<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
 <span class="s">[contextlake]</span>
 <span class="s">work_dir = ~/Projects/Secondary</span>
 <span class="s">gitlab_group = example-group-secondary</span>
@@ -382,9 +382,9 @@ elsewhere and chose the store. In that case <code>kb refresh --refresh</code> sa
 Pass <code>--config</code> with that file to run it in the background.</p>
 <p><code>contextlake kb steer</code> installs this as a <strong>Claude Code <code>SessionStart</code> hook</strong>, so every session
 opens with one line saying whether the graph describes today's code, and the update already running:</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">"hooks"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"SessionStart"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">"hooks"</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"command"</span><span class="p">,</span>
-<span class="w">                </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"contextlake kb refresh --hook --refresh"</span><span class="p">,</span><span class="w"> </span><span class="nt">"timeout"</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="p">}]</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">&quot;hooks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;SessionStart&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;hooks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;command&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contextlake kb refresh --hook --refresh&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;timeout&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="p">}]</span><span class="w"> </span><span class="p">}</span>
 <span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>Other hooks in that file are preserved, and re-running <code>steer</code> replaces our entry instead of adding
@@ -424,7 +424,7 @@ correct) with <code>CONTEXTLAKE_ALLOW_CONCURRENT=1</code>.</p>
 needs no logrotate entry.</p>
 <p>A shell redirect (<code>&gt;&gt; /tmp/contextlake.log</code>) is a different thing and does grow without bound.
 Rotate that one yourself:</p>
-<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/logrotate.d/contextlake<span class="w"> </span><span class="s">&lt;&lt; 'EOF'</span>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/logrotate.d/contextlake<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
 <span class="s">/tmp/contextlake.log {</span>
 <span class="s">    daily</span>
 <span class="s">    rotate 7</span>
@@ -437,14 +437,14 @@ Rotate that one yourself:</p>
 <span class="s">EOF</span>
 </code></pre></div>
 <h3 id="alerting-on-a-failed-run">Alerting on a failed run<a class="anchor" href="#alerting-on-a-failed-run" title="Link to this section">#</a></h3>
-<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>&gt;<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh<span class="w"> </span><span class="s">&lt;&lt; 'EOF'</span>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>&gt;<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
 <span class="s">#!/bin/bash</span>
 <span class="s">cd /home/user/work</span>
 <span class="s">contextlake mirror sync &gt;&gt; /tmp/contextlake.log 2&gt;&amp;1</span>
 <span class="s">EXIT_CODE=$?</span>
 
 <span class="s">if [ $EXIT_CODE -ne 0 ]; then</span>
-<span class="s">    echo "contextlake sync failed with exit code $EXIT_CODE" | mail -s "contextlake sync failure" user@example.com</span>
+<span class="s">    echo &quot;contextlake sync failed with exit code $EXIT_CODE&quot; | mail -s &quot;contextlake sync failure&quot; user@example.com</span>
 <span class="s">fi</span>
 <span class="s">EOF</span>
 chmod<span class="w"> </span>+x<span class="w"> </span>/home/user/scripts/contextlake_wrapper.sh
@@ -568,6 +568,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

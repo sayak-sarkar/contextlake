@@ -141,6 +141,8 @@ footer .icon-btn:hover{border-color:var(--current);color:#fff;background:rgba(23
 .prose a .ext-arrow{font-size:.7em;vertical-align:.35em;line-height:0;margin-left:1px;border:0;color:var(--link);opacity:.75}
 /* inline code may break so a long token (path, identifier) can't push the page wider than a
    phone viewport; inert on <pre> code (white-space:pre), which keeps its own horizontal scroll */
+/* a long unbroken word in prose (a slash-joined list such as a/b/c/d) breaks rather than widening the page */
+.prose{overflow-wrap:break-word}
 .prose code{font-family:var(--ff-m);font-size:max(14px,.9em);background:var(--code-bg);color:var(--code-ink);padding:.15em .42em;border-radius:5px;overflow-wrap:break-word}
 .prose pre{background:var(--pre-bg);color:var(--mist);padding:16px 18px;border-radius:12px;overflow:auto;border:1px solid var(--line-2);
   font-family:var(--ff-m);font-size:14px;line-height:1.55;box-shadow:0 8px 22px -14px rgba(14,42,51,.5);margin:1.1em 0}
@@ -269,6 +271,9 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
   letter-spacing:-.022em;line-height:1.12;margin:0}
 .doc-sub{font-size:16px;color:var(--muted);margin:.55em 0 0;max-width:40em;line-height:1.5}
 .doc-pebble{width:104px;height:auto;flex:none;filter:drop-shadow(0 8px 16px rgba(14,42,51,.14))}
+.doc-hero-text{min-width:0}
+/* below 400px a long one-word title (Configuration) and the 88px Pebble did not fit side by side */
+@media (max-width:400px){ .doc-hero h1{font-size:26px} .doc-pebble{width:64px} }
 
 /* on-page TOC rail */
 .toc-rail{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;

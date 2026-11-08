@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -214,15 +214,15 @@ reviews with the model that wrote the page. Set it in <code>~/.contextlake/kb.to
 <code>~/.contextlake/kb.toml</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[llm]</span>
 <span class="n">enabled</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ollama"</span><span class="w">        </span><span class="c1"># auto | builtin | ollama | openai | anthropic | cli</span>
-<span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">"qwen2.5:3b"</span><span class="w">    </span><span class="c1"># provider-specific model id (table below)</span>
-<span class="c1"># base_url    = "http://127.0.0.1:11434"   # optional: defaults per provider (table below)</span>
-<span class="c1"># api_key_env = "OPENAI_API_KEY"           # openai: env var holding the key (never the key)</span>
+<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span><span class="w">        </span><span class="c1"># auto | builtin | ollama | openai | anthropic | cli</span>
+<span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span><span class="w">    </span><span class="c1"># provider-specific model id (table below)</span>
+<span class="c1"># base_url    = &quot;http://127.0.0.1:11434&quot;   # optional: defaults per provider (table below)</span>
+<span class="c1"># api_key_env = &quot;OPENAI_API_KEY&quot;           # openai: env var holding the key (never the key)</span>
 <span class="c1"># timeout    = 300          # seconds per model call; raise it for a slow CPU (ollama/openai)</span>
 <span class="n">council_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="w">           </span><span class="c1"># review lenses that run (1-3); fewer = fewer calls per page</span>
 <span class="n">accept_score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.7</span><span class="w">         </span><span class="c1"># mean council score a page must clear to be written</span>
-<span class="c1"># review_provider = "anthropic"      # optional: have the COUNCIL review with a different</span>
-<span class="c1"># review_model    = "claude-haiku-4-5"  # (usually stronger) backend than the one generating</span>
+<span class="c1"># review_provider = &quot;anthropic&quot;      # optional: have the COUNCIL review with a different</span>
+<span class="c1"># review_model    = &quot;claude-haiku-4-5&quot;  # (usually stronger) backend than the one generating</span>
 </code></pre></div>
 <p>Unset, <code>review_provider</code> means the council reviews with the same client that generated the page,
 which is the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
@@ -273,7 +273,7 @@ or <code>x-api-key</code> header. The same rule covers <code>[embeddings]</code>
 <p>CLI flags override the toml and now work on <strong><code>bootstrap</code></strong> too:
 <code>contextlake bootstrap --llm ollama --llm-model qwen2.5:3b</code>.</p>
 <h2 id="installing-the-built-in-llm">Installing the built-in LLM<a class="anchor" href="#installing-the-built-in-llm" title="Link to this section">#</a></h2>
-<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">     </span><span class="c1"># or: pip install "contextlake[llm-local]"</span>
+<div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>doctor<span class="w"> </span>--fix<span class="w"> </span>llm-local<span class="w">     </span><span class="c1"># or: pip install &quot;contextlake[llm-local]&quot;</span>
 </code></pre></div>
 <p>An ordinary wheel install on Linux with glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows
 x86-64 and Apple silicon Macs. No compiler, no custom index, no <code>--only-binary</code> pin.
@@ -407,7 +407,7 @@ WSL2 has its own IP address, so a Windows Ollama bound to <code>127.0.0.1</code>
   Variables) and restart Ollama so it listens on all interfaces; allow it through the Windows firewall.
   From WSL, the Windows host is your <strong>default-route gateway</strong>, <em>not</em> the <code>nameserver</code> in
   <code>/etc/resolv.conf</code> (that is a DNS stub):
-  <div class="highlight"><pre><span></span><code>ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>default<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">'{print $3}'</span><span class="w">   </span><span class="c1"># e.g. 172.24.224.1  (NOT 10.255.255.254)</span>
+  <div class="highlight"><pre><span></span><code>ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>default<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $3}&#39;</span><span class="w">   </span><span class="c1"># e.g. 172.24.224.1  (NOT 10.255.255.254)</span>
 curl<span class="w"> </span>http://172.24.224.1:11434/api/tags<span class="w">    </span><span class="c1"># confirm reachability</span>
 </code></pre></div>
   Set <code>base_url = "http://172.24.224.1:11434"</code> in <code>[llm]</code> (your IP will differ).</li>
@@ -442,8 +442,8 @@ the page rather than another round of calls.</p>
 <p>If your local model is slow, raise the per-call timeout instead of letting every page fail silently:
 <code>timeout</code> in <code>[llm]</code> (seconds, default 300):</p>
 <div class="highlight"><pre><span></span><code><span class="k">[llm]</span>
-<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ollama"</span>
-<span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">"qwen2.5:3b"</span>
+<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ollama&quot;</span>
+<span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5:3b&quot;</span>
 <span class="n">timeout</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="mi">1200</span><span class="w">        </span><span class="c1"># give a slow CPU room; default is 300s (5 min)</span>
 </code></pre></div>
 <p>If the endpoint stops answering rather than being slow, raising <code>timeout</code> makes things worse: a wiki run
@@ -560,6 +560,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

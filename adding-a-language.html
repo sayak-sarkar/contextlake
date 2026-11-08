@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -124,7 +124,7 @@ language.</p>
 <p>One check before you commit to an id. The parser cache and the extraction-kind registry are both keyed
 by string, and they were once the same variable, so a language named after a node kind silently
 returned the wrong object. Confirm your id is not already a kind:</p>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"from contextlake.kb.kinds import KIND_REGISTRY; print('mylang' in KIND_REGISTRY)"</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from contextlake.kb.kinds import KIND_REGISTRY; print(&#39;mylang&#39; in KIND_REGISTRY)&quot;</span>
 </code></pre></div>
 <p><code>False</code> is the answer you want. <code>data</code>, <code>local</code>, <code>output</code>, <code>state</code>, <code>table</code>, <code>variable</code> and <code>view</code> are
 among the names already taken.</p>
@@ -136,7 +136,7 @@ because it is the reason this list is ordered the way it is.</p>
 <h3 id="1-declare-the-grammar-dependency">1. Declare the grammar dependency<a class="anchor" href="#1-declare-the-grammar-dependency" title="Link to this section">#</a></h3>
 <p>In <code>pyproject.toml</code>, find the <code>kb</code> optional extra and its tree-sitter block, commented "Code parsing:
 the tree-sitter runtime plus per-language grammar packages". Add your grammar to that list:</p>
-<div class="highlight"><pre><span></span><code><span class="s2">"tree-sitter-&lt;lang&gt;&gt;=X.Y"</span><span class="err">,</span>
+<div class="highlight"><pre><span></span><code><span class="s2">&quot;tree-sitter-&lt;lang&gt;&gt;=X.Y&quot;</span><span class="err">,</span>
 </code></pre></div>
 <p>Pin the floor to the version whose <code>language()</code> entry point you import against, not to a
 house number. The existing pins vary for that reason. Nothing else needs editing: the <code>kb-full</code> extra
@@ -208,7 +208,7 @@ reduce to the bare name. If your language has neither shape, the strips are no-o
 <h3 id="5-load-the-grammar">5. Load the grammar<a class="anchor" href="#5-load-the-grammar" title="Link to this section">#</a></h3>
 <p><code>_language()</code> is an explicit <code>if</code>/<code>elif</code> chain of lazy imports ending in
 <code>raise ValueError(f"unsupported language: {lang}")</code>. Add a branch:</p>
-<div class="highlight"><pre><span></span><code><span class="k">elif</span> <span class="n">lang</span> <span class="o">==</span> <span class="s2">"&lt;lang&gt;"</span><span class="p">:</span>
+<div class="highlight"><pre><span></span><code><span class="k">elif</span> <span class="n">lang</span> <span class="o">==</span> <span class="s2">&quot;&lt;lang&gt;&quot;</span><span class="p">:</span>
     <span class="kn">import</span><span class="w"> </span><span class="nn">tree_sitter_</span><span class="o">&lt;</span><span class="n">lang</span><span class="o">&gt;</span> <span class="k">as</span> <span class="n">g</span>
     <span class="n">fn</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">language</span>
 </code></pre></div>
@@ -403,11 +403,11 @@ not part of adding a language.</p>
 <p>Run these in order. The first three are offline and touch nothing outside the repo and a scratch
 directory.</p>
 <h3 id="the-grammar-loads-and-the-query-compiles">The grammar loads and the query compiles<a class="anchor" href="#the-grammar-loads-and-the-query-compiles" title="Link to this section">#</a></h3>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
 <span class="s2">from contextlake.kb.parse import _language, _query, _parser</span>
-<span class="s2">_language('&lt;lang&gt;'); _query('&lt;lang&gt;'); _parser('&lt;lang&gt;')</span>
-<span class="s2">print('grammar + query OK')</span>
-<span class="s2">"</span>
+<span class="s2">_language(&#39;&lt;lang&gt;&#39;); _query(&#39;&lt;lang&gt;&#39;); _parser(&#39;&lt;lang&gt;&#39;)</span>
+<span class="s2">print(&#39;grammar + query OK&#39;)</span>
+<span class="s2">&quot;</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code>grammar + query OK
 </code></pre></div>
@@ -422,22 +422,22 @@ grammar does not have fails at construction, naming the row and column:</p>
 node <strong>types</strong>, not capture names. A capture name the parser does not read compiles cleanly and stays
 silent.</p>
 <h3 id="the-parser-produces-the-nodes-calls-and-bases-you-expect">The parser produces the nodes, calls and bases you expect<a class="anchor" href="#the-parser-produces-the-nodes-calls-and-bases-you-expect" title="Link to this section">#</a></h3>
-<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"</span>
+<div class="highlight"><pre><span></span><code>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
 <span class="s2">from contextlake.kb.parse import parse_source</span>
-<span class="s2">src = open('/path/to/sample.&lt;ext&gt;','rb').read()</span>
-<span class="s2">nodes, edges, calls, inherits = parse_source('demo/&lt;lang&gt;', 'sample.&lt;ext&gt;', src, '&lt;lang&gt;')</span>
+<span class="s2">src = open(&#39;/path/to/sample.&lt;ext&gt;&#39;,&#39;rb&#39;).read()</span>
+<span class="s2">nodes, edges, calls, inherits = parse_source(&#39;demo/&lt;lang&gt;&#39;, &#39;sample.&lt;ext&gt;&#39;, src, &#39;&lt;lang&gt;&#39;)</span>
 <span class="s2">for n in nodes: print(n.kind, n.name, n.qualified_name, n.line_start)</span>
-<span class="s2">print('calls   ', sorted({c[1] for c in calls}))</span>
-<span class="s2">print('inherits', sorted({i[1] for i in inherits}))</span>
-<span class="s2">"</span>
+<span class="s2">print(&#39;calls   &#39;, sorted({c[1] for c in calls}))</span>
+<span class="s2">print(&#39;inherits&#39;, sorted({i[1] for i in inherits}))</span>
+<span class="s2">&quot;</span>
 </code></pre></div>
 <p>On a small Kotlin sample holding one class with one method, one import, one call and one base type:</p>
 <div class="highlight"><pre><span></span><code>file Svc.kt None None
 class GaugeService Svc.kt::GaugeService 5
 method process Svc.kt::GaugeService.process 6
 module com.example.Base None None
-calls    ['helper']
-inherits ['Base']
+calls    [&#39;helper&#39;]
+inherits [&#39;Base&#39;]
 </code></pre></div>
 <p>Read all four streams. <code>class</code> and <code>method</code> prove your <code>_DEF_TYPES</code> mapping and the method promotion;
 the <code>module</code> node proves <code>@import</code>; and the two lists prove <code>@call</code> and <code>@base</code> captured names with
@@ -461,7 +461,7 @@ that they did not: they are the two a language addition can move by accident.</p
 would write into your live store. Point it at a throwaway config whose <code>store_dir</code> is somewhere
 disposable:</p>
 <div class="highlight"><pre><span></span><code>mkdir<span class="w"> </span>-p<span class="w"> </span>/tmp/lang-check/demo-repo<span class="w"> </span>/tmp/lang-check/store
-<span class="nb">printf</span><span class="w"> </span><span class="s1">'[kb]\nstore_dir = "/tmp/lang-check/store"\n'</span><span class="w"> </span>&gt;<span class="w"> </span>/tmp/lang-check/kb.toml
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[kb]\nstore_dir = &quot;/tmp/lang-check/store&quot;\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>/tmp/lang-check/kb.toml
 cp<span class="w"> </span>sample.&lt;ext&gt;<span class="w"> </span>/tmp/lang-check/demo-repo/
 </code></pre></div>
 <p>Index it, and read the count:</p>
@@ -498,7 +498,7 @@ message in this repo.</p>
 <p>This is the headline, and it is the reason to run the cheap grammar check before the CLI. Every file's
 parse is wrapped in a blanket handler, because one bad file must not abort a repo:</p>
 <div class="highlight"><pre><span></span><code><span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># noqa: BLE001 - one bad file must not abort the repo</span>
-    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  skip </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">rel</span><span class="si">}</span><span class="s2">: parse error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">log</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  skip </span><span class="si">{</span><span class="n">sf</span><span class="o">.</span><span class="n">rel</span><span class="si">}</span><span class="s2">: parse error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>So all three half-registered states collapse into one log line at normal verbosity, and the index
 still reports success:</p>
@@ -706,6 +706,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

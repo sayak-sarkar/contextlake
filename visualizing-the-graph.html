@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -92,10 +92,10 @@
 <p><code>contextlake kb graph</code> draws a <strong>bounded</strong> slice of the graph. The whole thing (hundreds of thousands of
 nodes) is too large to render, so every view is scoped from a seed and capped:</p>
 <div class="highlight"><pre><span></span><code>contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--overview<span class="w"> </span>--open<span class="w">                 </span><span class="c1"># repos-as-nodes: the architecture map</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--name<span class="w"> </span>ForecastService<span class="w"> </span>--kind<span class="w"> </span>class<span class="w">  </span><span class="c1"># a symbol's neighbourhood (default 2 hops)</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--name<span class="w"> </span>ForecastService<span class="w"> </span>--kind<span class="w"> </span>class<span class="w">  </span><span class="c1"># a symbol&#39;s neighbourhood (default 2 hops)</span>
 contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--node<span class="w"> </span>&lt;id&gt;<span class="w"> </span>--hops<span class="w"> </span><span class="m">3</span><span class="w">              </span><span class="c1"># expand around an exact node id</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--search<span class="w"> </span><span class="s2">"sensor"</span><span class="w"> </span>--open<span class="w">          </span><span class="c1"># seed from a full-text search</span>
-contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--repo<span class="w"> </span>acme/forecast-api<span class="w">          </span><span class="c1"># one repo's internal code graph</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--search<span class="w"> </span><span class="s2">&quot;sensor&quot;</span><span class="w"> </span>--open<span class="w">          </span><span class="c1"># seed from a full-text search</span>
+contextlake<span class="w"> </span>kb<span class="w"> </span>graph<span class="w"> </span>--repo<span class="w"> </span>acme/forecast-api<span class="w">          </span><span class="c1"># one repo&#39;s internal code graph</span>
 </code></pre></div>
 <h2 id="how-a-view-is-built">How a view is built<a class="anchor" href="#how-a-view-is-built" title="Link to this section">#</a></h2>
 <pre class="mermaid">flowchart LR
@@ -382,7 +382,7 @@ box labels yourself; you'll recognize your own internal hosts. <code>--c1</code>
 meaning on its own) and needs no new extraction pass, the host was already captured at index time,
 just never used until this view asks for it.</p>
 <h2 id="the-graph-on-this-page">The graph, on this page<a class="anchor" href="#the-graph-on-this-page" title="Link to this section">#</a></h2>
-<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=07152f40"
+<p><img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html?v=88fb540c"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner."></p>
 <p class="shot-cap">The real visualizer, on contextlake's own code. Drag, zoom, search, and open a node to see its file and line. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
@@ -521,6 +521,6 @@ s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click
     io.observe(img);
   });
 })();</script>
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>

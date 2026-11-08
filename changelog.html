@@ -19,7 +19,7 @@
 <meta name="twitter:title" content="Changelog · contextlake docs">
 <meta name="twitter:description" content="Release history for contextlake.">
 <meta name="twitter:image" content="https://sayak.in/contextlake/og-card.jpg">
-<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Changelog", "description": "Release history for contextlake.", "url": "https://sayak.in/contextlake/changelog", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-08"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Changelog", "item": "https://sayak.in/contextlake/changelog"}]}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "TechArticle", "headline": "Changelog", "description": "Release history for contextlake.", "url": "https://sayak.in/contextlake/changelog", "inLanguage": "en", "author": {"@type": "Person", "name": "Sayak Sarkar"}, "publisher": {"@type": "Organization", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "isPartOf": {"@type": "WebSite", "name": "contextlake", "url": "https://sayak.in/contextlake/"}, "dateModified": "2026-11-09"}, {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "contextlake", "item": "https://sayak.in/contextlake/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://sayak.in/contextlake/docs"}, {"@type": "ListItem", "position": 3, "name": "Changelog", "item": "https://sayak.in/contextlake/changelog"}]}]}</script>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -29,10 +29,10 @@
 <link rel="preload" as="font" type="font/woff2" href="fonts/space-grotesk-600.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="fonts/jetbrains-mono-400.woff2" crossorigin>
-<link rel="stylesheet" href="fonts.css?v=07152f40">
-<link rel="stylesheet" href="tokens.css?v=07152f40">
-<link rel="stylesheet" href="docs.css?v=07152f40">
-<link rel="stylesheet" href="cmdk.css?v=07152f40">
+<link rel="stylesheet" href="fonts.css?v=88fb540c">
+<link rel="stylesheet" href="tokens.css?v=88fb540c">
+<link rel="stylesheet" href="docs.css?v=88fb540c">
+<link rel="stylesheet" href="cmdk.css?v=88fb540c">
 </head>
 <body>
 <a class="skip" href="#doc">Skip to content</a>
@@ -58,7 +58,7 @@
     <details class="toc-inline"><summary>On this page</summary><nav aria-label="On this page (inline)">
 <ul>
 <li><a href="#unreleased">[Unreleased]</a></li>
-<li><a href="#1002-2026-11-08">[10.0.2] - 2026-11-08</a><ul>
+<li><a href="#1002-2026-11-09">[10.0.2] - 2026-11-09</a><ul>
 <li><a href="#fixed">Fixed</a></li>
 <li><a href="#changed">Changed</a></li>
 </ul>
@@ -1065,20 +1065,27 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/" target="_blank" rel="noopener">Keep a Changelog<span class="ext-arrow" aria-hidden="true">↗</span></a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html" target="_blank" rel="noopener">Semantic Versioning<span class="ext-arrow" aria-hidden="true">↗</span></a>.</p>
 <h2 id="unreleased">[Unreleased]<a class="anchor" href="#unreleased" title="Link to this section">#</a></h2>
-<h2 id="1002-2026-11-08">[10.0.2] - 2026-11-08<a class="anchor" href="#1002-2026-11-08" title="Link to this section">#</a></h2>
+<h2 id="1002-2026-11-09">[10.0.2] - 2026-11-09<a class="anchor" href="#1002-2026-11-09" title="Link to this section">#</a></h2>
 <p>A docs-only release. The code is the same as 10.0.1; the changes are in the docs and the docs
 site build.</p>
 <h3 id="fixed">Fixed<a class="anchor" href="#fixed" title="Link to this section">#</a></h3>
 <ul>
-<li><strong>Docs pages no longer scroll sideways on phones.</strong> At 375px the header was 6px wider than the
-  screen (10.0.0 and 10.0.1 have it too). Below 480px the GitHub button shows its icon only and
-  keeps its accessible name.</li>
+<li><strong>Docs pages no longer scroll sideways on phones.</strong> Measured on all 38 docs pages at 375px and
+  320px. Three causes, each in 10.0.0 and 10.0.1 too: the header was 6px wider than the screen
+  (below 480px the GitHub button now shows its icon only and keeps its accessible name); a long
+  word with no break point, such as a slash-joined list, widened a page to 474px (prose now breaks
+  such a word); and at 320px a long one-word title and the Pebble did not fit side by side (below
+  400px both are smaller).</li>
 <li><strong>The docs navigation works without JavaScript on phones.</strong> Below 860px it hid behind the
   "Browse docs" toggle, which needs JavaScript to open, so with JavaScript off it could not be
   reached. It now hides behind the toggle only when JavaScript runs.</li>
 </ul>
 <h3 id="changed">Changed<a class="anchor" href="#changed" title="Link to this section">#</a></h3>
 <ul>
+<li>The site uses the new contextlake logo and favicon set: the landing, docs and 404 headers, both
+  footers and the browser icons.</li>
+<li>The docs header Pebble is a painterly version of the original 10.0.0 picture, made with a
+  transparent background, so it has no cutout edge on the dark theme.</li>
 <li>The installing and scheduling pages have their Pebble pictures.</li>
 <li><code>docs/using-the-dashboard.md</code> shows the Data flow tab, in light and dark, from a live dashboard.</li>
 </ul>
@@ -3384,7 +3391,7 @@ Refused requests (never reached a tool)
 content-type: application/json
 retry-after: 20
 
-{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"rate limit exceeded for this key: 3/min. retry in 20s"}}
+{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:null,&quot;error&quot;:{&quot;code&quot;:-32000,&quot;message&quot;:&quot;rate limit exceeded for this key: 3/min. retry in 20s&quot;}}
 </code></pre></div>
 <p>Two buckets per key, filled lazily from two floats each. <code>--rate</code> and <code>--burst</code> bound
   requests; <code>--cost-budget</code> bounds tool TIME, as a duration per period (<code>30s/min</code>), and
@@ -3724,8 +3731,8 @@ demo/app            -&gt;  demo/app             (id unchanged; its two symbols c
   <code>https://api.openai.com/v1/embeddings</code> and your indexed code leaves the machine. One line keeps
   it where it was:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[embeddings]</span>
-<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"openai"</span>
-<span class="n">base_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"http://127.0.0.1:11434"</span>
+<span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
+<span class="n">base_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;http://127.0.0.1:11434&quot;</span>
 </code></pre></div>
 <p>Nothing changes for <code>provider = "ollama"</code>, <code>"builtin"</code> or <code>"auto"</code>, or for any config that
   already writes a <code>base_url</code> line.</p>
@@ -4745,7 +4752,7 @@ Nothing is required of you beyond the next run costing more than usual.</p>
   its own outcome, counted separately and listed in the summary, rather than an ordinary
   switch to something else:</p>
 <div class="highlight"><pre><span></span><code>✓ Branch switch complete: 4 switched, 0 already, 0 skipped, 0 empty, 0 dry-run, 396 unpinned, 0 errors
-  396 repo(s) have no branch 'release/24.1'; each stayed on its most active branch
+  396 repo(s) have no branch &#39;release/24.1&#39;; each stayed on its most active branch
 </code></pre></div>
 <p>Folding that into "switched" would leave several hundred repositories reading as though
   they had done what was asked. The outcome is not an error either, so <code>--branch</code> on a real
@@ -11716,7 +11723,7 @@ critical configuration bug.</p>
   <aside class="toc-rail"><nav aria-label="On this page"><p class="toc-title">On this page</p>
 <ul>
 <li><a href="#unreleased">[Unreleased]</a></li>
-<li><a href="#1002-2026-11-08">[10.0.2] - 2026-11-08</a><ul>
+<li><a href="#1002-2026-11-09">[10.0.2] - 2026-11-09</a><ul>
 <li><a href="#fixed">Fixed</a></li>
 <li><a href="#changed">Changed</a></li>
 </ul>
@@ -12750,6 +12757,6 @@ fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>
 
-<script defer src="cmdk.js?v=07152f40"></script>
+<script defer src="cmdk.js?v=88fb540c"></script>
 </body>
 </html>
