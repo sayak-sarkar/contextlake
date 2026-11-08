@@ -355,7 +355,8 @@ for _p in PAGES:
     if _p[4] != GROUP_OF[_p[0]]:
         raise SystemExit(f"build_docs: {_p[0]} eyebrow {_p[4]!r} is not its band "
                          f"{GROUP_OF[_p[0]]!r}")
-    # See also links use the sidebar title of their target, so one page has one name
+    # Next steps links (the hand-picked links in each PAGES row) use the sidebar title of their
+    # target, so one page has one name
     for _href, _label in _p[7]:
         if _label != TITLES[_href]:
             raise SystemExit(f"build_docs: {_p[0]} links {_href} as {_label!r}, "
