@@ -8,7 +8,7 @@ After the general code model and its language table, eleven sections cover the s
 indexer reads beyond ordinary program text. Each names what it extracts and, where the
 extraction is inferred and not declared, says so.
 
-- Terraform (infrastructure as code), in [Infrastructure: Terraform / HCL](#infrastructure-terraform-hcl).
+- Terraform (infrastructure as code), in [Infrastructure: Terraform and HCL](#infrastructure-terraform-and-hcl).
 - SQL DDL (table and schema definitions), in [Databases: SQL DDL](#databases-sql-ddl).
 - XML Schema (data contracts for XML), in [Data contracts: XML Schema](#data-contracts-xml-schema).
 - XSLT (a language that transforms XML), in [Transformations: XSLT](#transformations-xslt).
@@ -152,7 +152,7 @@ Two things that deliberately do **not** collapse:
 If a C or C++ shard was indexed before these fixes landed, `doctor` flags it so you know to
 re-index. See [Health and maintenance](indexing-the-code-graph.md#health-and-maintenance).
 
-### Infrastructure: Terraform / HCL
+### Infrastructure: Terraform and HCL
 
 `.tf` files build an infrastructure dependency graph: `resource` / `data` / `variable` / `output` /
 `module` / `local` definitions with `depends_on` edges resolving `var.` / `module.` / `data.` / resource
