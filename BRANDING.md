@@ -544,7 +544,13 @@ simplification of it.
 **Do:** keep the pebble glow the single brightest point; cast its teal glow onto Pebble; aim gaze at
 content/CTA/pebble; use deepwater `#0E2A33` as the darkest value; keep Pebble outline-free.
 
-**Docs hero asset (settled 2026-11-09, owner decision):** `docs/branding/pebble-doc.png` is a painterly repaint of the original 10.0.0 header Pebble, which the owner found the cutest: chubby cheeks, big glossy eyes, a happy open smile, eye contact with the reader, both paws on the pebble, generated with a transparent background. It keeps the original's character and drops what broke the brand: the dark keyline, the cel shading, the tan fur, the gold sparkles and the star pattern inside the pebble. Its open smile and eye contact are an owner-approved exception to the expression and gaze rules, for this picture only. It replaces the 10.0.1 picture, a cutout that looked down at the pebble and left a hard pale edge on the dark theme.
+**Docs hero asset (settled 2026-11-09, owner decision):** `docs/branding/pebble-doc.png` is a painterly repaint of the original 10.0.0 header Pebble, which the owner found the cutest.
+
+- It keeps the original's character: chubby cheeks, big glossy eyes, a happy open smile, eye contact with the reader, both paws on the pebble.
+- It drops what broke the brand: the dark keyline, the cel shading, the tan fur, the gold sparkles and the star pattern inside the pebble.
+- It was generated with a transparent background, so it has no cutout edge.
+- Its open smile and eye contact are an owner-approved exception to the expression and gaze rules, for this picture only.
+- It replaces the 10.0.1 picture, a cutout that looked down at the pebble and left a hard pale edge on the dark theme.
 
 **Don't:** ❌ node-graph/star-dots inside the pebble · ❌ amber sphere, faceted gem, or gold-nugget pebble · ❌ water droplets/sweat on the face · ❌ hard black outlines on painterly art; no `#000` anywhere · ❌ off-page or viewer-locked painterly stare · ❌ more than one gold glint; no second eye-sparkle · ❌ anxious/shocked/angry/sleepy/silly expressions · ❌ two-Pebble compositions; no Pebble over a live graph · ❌ AI-generated wordmark.
 
