@@ -451,7 +451,7 @@ palette support.
 is currently off-canon and needs regeneration** to match; see §7.3.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter cradling a glowing translucent context-pebble in both forepaws, offering it forward." width="240">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter holding a glowing teal context-pebble in both forepaws and looking down at it." width="240">
 </p>
 
 *The current docs hero image, shown for reference only. It is off-canon (§5.9) and a later release replaces it.*
@@ -543,7 +543,7 @@ simplification of it.
 **Do:** keep the pebble glow the single brightest point; cast its teal glow onto Pebble; aim gaze at
 content/CTA/pebble; use deepwater `#0E2A33` as the darkest value; keep Pebble outline-free.
 
-**Docs hero asset (open, owner decision):** the current `docs/branding/pebble-doc.png` is a cutout with a dark keyline, a cel-shaded face, gold sparkles and star-like dots inside the pebble, and an open tongue. Each of these breaks §5.8, this section, or `docs/branding/mascot.md`. The docs hero asset is to be a painterly picture generated from the brand set. The replacement picture arrives in a later release, and until then the current file stays off-canon.
+**Docs hero asset (settled 2026-11-08, owner decision):** `docs/branding/pebble-doc.png` is a painterly head-and-chest picture of Pebble, generated from the brand set and approved by the owner: canon head, a body that matches the head, the pebble held low, the bottom fading out softly. It replaces the 10.0.0 cutout, which had a dark keyline, a cel-shaded face, gold sparkles, star-like dots inside the pebble and an open tongue.
 
 **Don't:** ❌ node-graph/star-dots inside the pebble · ❌ amber sphere, faceted gem, or gold-nugget pebble · ❌ water droplets/sweat on the face · ❌ hard black outlines on painterly art; no `#000` anywhere · ❌ off-page or viewer-locked painterly stare · ❌ more than one gold glint; no second eye-sparkle · ❌ anxious/shocked/angry/sleepy/silly expressions · ❌ two-Pebble compositions; no Pebble over a live graph · ❌ AI-generated wordmark.
 
@@ -676,7 +676,7 @@ choice. The 16–64px favicon tier (§2.3) is the only surface that drops the ch
 | `docs/img/pebble-peek.png`, `docs/img/icon-512.png`, hero/OG art | **Off-canon**: same brown-fur drift as the mark, from an unlocked later ChatGPT session | **Regenerate** to blue-grey; not yet done, blocked on new art generation | PNG/WebP |
 | `docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg` | retired flat-mark assets (correct blue-grey color, wrong register) | **Kept for history only** -- not referenced by any build, page, or spec; do not revive as the logo (the register decision stands even though the color was right) | n/a |
 | `docs/branding/wordmark.svg` | shipped single-color, weight 700 | keep in sync with §2.4; `<desc>` should not claim a flat otter-head mark is primary | SVG |
-| `docs/branding/pebble-doc.png` | **Off-canon**: keyline, cel-shaded face, sparkles, open tongue (§5.9). Current docs hero image | **Replace** with a painterly picture in a later release | PNG |
+| `docs/branding/pebble-doc.png` | **Canon**: painterly docs hero, approved 2026-11-08 (416x448, transparent background) | Keep | PNG |
 | `docs/branding/mascot.md` | rewritten to Section 5, then corrected back to blue-grey 2026-07-28 | keep in sync with §5 | markdown |
 | `docs/img/icon-16/32/48/64.png` | context-pebble (`site/tools/gen_small_mark.py`): teal disc, deepwater interior marks, one sun glint | **Regenerate** with the tool; never hand-edit | PNG, deepwater-solid bg |
 | `docs/img/icon-180/192/512.png` | painterly mark (`site/tools/gen_icons_final.py`), warm brown | **Regenerate** once blue-grey painterly art exists (see "The mark" row above) | PNG, deepwater-solid bg |
