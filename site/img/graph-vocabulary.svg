@@ -1,154 +1,156 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1510" width="900" height="1510" role="img" aria-label="contextlake knowledge graph node kinds and edge relations"><defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#41606a"/></marker></defs><rect x="0" y="0" width="900" height="1510" fill="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1598" width="900" height="1598" role="img" aria-label="contextlake knowledge graph node kinds and edge relations"><defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 5L0 10z" fill="#566B70"/></marker></defs><rect x="0" y="0" width="900" height="1598" fill="none"/>
+<rect x="12" y="62" width="432" height="1526" rx="12" fill="#EAF4F4"/>
+<rect x="456" y="62" width="432" height="500" rx="12" fill="#EAF4F4"/>
 <text x="26" y="30" font-size="20" font-weight="700" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">The knowledge graph vocabulary</text>
-<text x="26" y="52" font-size="12.5" fill="#41606a" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">node kinds and edge relations, colored exactly as <tspan font-family="'JetBrains Mono',ui-monospace,monospace">contextlake kb graph</tspan> renders them</text>
-<text x="26" y="74" font-size="13" font-weight="700" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Node kinds</text>
-<text x="26" y="96" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">SYMBOLS</text>
-<rect x="26" y="103" width="15" height="15" rx="4" fill="#fb8500" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="115" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">class</text>
-<rect x="26" y="125" width="15" height="15" rx="4" fill="#fd9e02" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="137" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">interface</text>
-<rect x="26" y="147" width="15" height="15" rx="4" fill="#f4a261" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="159" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">struct</text>
-<rect x="26" y="169" width="15" height="15" rx="4" fill="#90be6d" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="181" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">function</text>
-<rect x="26" y="191" width="15" height="15" rx="4" fill="#43aa8b" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="203" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">method</text>
-<rect x="26" y="213" width="15" height="15" rx="4" fill="#577590" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="225" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">enum</text>
-<rect x="26" y="235" width="15" height="15" rx="4" fill="#2a9d8f" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="247" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">test</text>
-<rect x="26" y="257" width="15" height="15" rx="4" fill="#8d99ae" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="269" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">field</text>
-<rect x="26" y="279" width="15" height="15" rx="4" fill="#e07a5f" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="291" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">macro</text>
-<rect x="26" y="301" width="15" height="15" rx="4" fill="#81b29a" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="313" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">typedef</text>
-<rect x="26" y="323" width="15" height="15" rx="4" fill="#6d9dc5" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="335" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">enum_constant</text>
-<rect x="26" y="345" width="15" height="15" rx="4" fill="#b08968" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="357" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">global_variable</text>
-<text x="26" y="386" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">CONTAINERS</text>
-<rect x="26" y="393" width="15" height="15" rx="4" fill="#8ecae6" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="405" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">file</text>
-<rect x="26" y="415" width="15" height="15" rx="4" fill="#ffb703" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="427" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">module</text>
-<rect x="26" y="437" width="15" height="15" rx="4" fill="#e76f51" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="449" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">package</text>
-<rect x="26" y="459" width="15" height="15" rx="4" fill="#264653" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="471" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">repo</text>
-<text x="26" y="500" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">SERVICE SURFACES</text>
-<rect x="26" y="507" width="15" height="15" rx="4" fill="#f08c3a" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="519" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">endpoint</text>
-<rect x="26" y="529" width="15" height="15" rx="4" fill="#b07fd0" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="541" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">topic</text>
-<rect x="26" y="551" width="15" height="15" rx="4" fill="#e2711d" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="563" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">route</text>
-<rect x="26" y="573" width="15" height="15" rx="4" fill="#5e548e" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="585" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">state</text>
-<rect x="26" y="595" width="15" height="15" rx="4" fill="#22c55e" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="607" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">entry_point</text>
-<text x="26" y="636" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">DATA MODEL</text>
-<rect x="26" y="643" width="15" height="15" rx="4" fill="#b5179e" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="655" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">table</text>
-<rect x="26" y="665" width="15" height="15" rx="4" fill="#d64ab5" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="677" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">view</text>
-<rect x="26" y="687" width="15" height="15" rx="4" fill="#c98ac0" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="699" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">db_package</text>
-<rect x="26" y="709" width="15" height="15" rx="4" fill="#d9789a" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="721" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">trigger</text>
-<rect x="26" y="731" width="15" height="15" rx="4" fill="#5f7fd4" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="743" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">schema_type</text>
-<rect x="26" y="753" width="15" height="15" rx="4" fill="#8aa7ea" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="765" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">schema_element</text>
-<rect x="26" y="775" width="15" height="15" rx="4" fill="#e0a3d5" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="787" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">procedure</text>
-<text x="26" y="816" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">INFRASTRUCTURE</text>
-<rect x="26" y="823" width="15" height="15" rx="4" fill="#3f37c9" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="835" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">resource</text>
-<rect x="26" y="845" width="15" height="15" rx="4" fill="#5a67d8" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="857" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">data</text>
-<rect x="26" y="867" width="15" height="15" rx="4" fill="#7c83db" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="879" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">variable</text>
-<rect x="26" y="889" width="15" height="15" rx="4" fill="#9aa0e0" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="901" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">output</text>
-<rect x="26" y="911" width="15" height="15" rx="4" fill="#c3c7e8" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="923" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">local</text>
-<text x="26" y="952" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">PRESENTATION</text>
-<rect x="26" y="959" width="15" height="15" rx="4" fill="#7c3aed" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="971" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">css_class</text>
-<rect x="26" y="981" width="15" height="15" rx="4" fill="#a855f7" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="993" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">css_id</text>
-<rect x="26" y="1003" width="15" height="15" rx="4" fill="#c084fc" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1015" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">css_element</text>
-<rect x="26" y="1025" width="15" height="15" rx="4" fill="#e879f9" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1037" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">html_id</text>
-<text x="26" y="1066" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">CONFIGURATION</text>
-<rect x="26" y="1073" width="15" height="15" rx="4" fill="#7f8c8d" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1085" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">config_key</text>
-<rect x="26" y="1095" width="15" height="15" rx="4" fill="#f4a261" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1107" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">make_target</text>
-<rect x="26" y="1117" width="15" height="15" rx="4" fill="#2496ed" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1129" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">dockerfile_stage</text>
-<rect x="26" y="1139" width="15" height="15" rx="4" fill="#38bdf8" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1151" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">nix_attr</text>
-<text x="26" y="1180" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">DOCUMENTS</text>
-<rect x="26" y="1187" width="15" height="15" rx="4" fill="#52796f" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1199" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">adr</text>
-<rect x="26" y="1209" width="15" height="15" rx="4" fill="#84a98c" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1221" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">document</text>
-<rect x="26" y="1231" width="15" height="15" rx="4" fill="#354f52" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1243" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">wiki</text>
-<text x="26" y="1272" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">CROSS-SOURCE</text>
-<rect x="26" y="1279" width="15" height="15" rx="4" fill="#bc6c25" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1291" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">issue</text>
-<rect x="26" y="1301" width="15" height="15" rx="4" fill="#606c38" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1313" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">page</text>
-<rect x="26" y="1323" width="15" height="15" rx="4" fill="#9d4edd" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1335" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">design</text>
-<rect x="26" y="1345" width="15" height="15" rx="4" fill="#9c6644" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1357" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">mr</text>
-<rect x="26" y="1367" width="15" height="15" rx="4" fill="#dda15e" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1379" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">message</text>
-<rect x="26" y="1389" width="15" height="15" rx="4" fill="#a68a64" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1401" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">channel</text>
-<text x="26" y="1430" font-size="11" font-weight="600" fill="#41606a" letter-spacing=".04em" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">BOUNDARY</text>
-<rect x="26" y="1437" width="15" height="15" rx="4" fill="#3d5a80" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1449" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">namespace</text>
-<rect x="26" y="1459" width="15" height="15" rx="4" fill="#6c757d" stroke="#0E2A33" stroke-opacity=".18"/>
-<text x="50" y="1471" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">system</text>
-<text x="470" y="74" font-size="13" font-weight="700" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Edge relations</text>
-<line x1="470" y1="92" x2="522" y2="92" stroke="#137A8B" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="96" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">calls</text>
-<line x1="470" y1="116" x2="522" y2="116" stroke="#228f82" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="120" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">imports</text>
-<line x1="470" y1="140" x2="522" y2="140" stroke="#67858b" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="144" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">contains</text>
-<line x1="470" y1="164" x2="522" y2="164" stroke="#a37914" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="168" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">depends_on</text>
-<line x1="470" y1="188" x2="522" y2="188" stroke="#997c40" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="192" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">publishes</text>
-<line x1="470" y1="212" x2="522" y2="212" stroke="#de511a" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="216" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">flow</text>
-<line x1="470" y1="236" x2="522" y2="236" stroke="#c9630f" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="240" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">exposes</text>
-<line x1="470" y1="260" x2="522" y2="260" stroke="#c1440e" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="264" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">calls_http</text>
-<line x1="470" y1="284" x2="522" y2="284" stroke="#577590" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="288" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">tracked_by</text>
-<line x1="470" y1="308" x2="522" y2="308" stroke="#9d4edd" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="312" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">documented_by</text>
-<line x1="470" y1="332" x2="522" y2="332" stroke="#57888f" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="336" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">inherits</text>
-<line x1="470" y1="356" x2="522" y2="356" stroke="#57888f" stroke-width="3" marker-end="url(#ar2)"/>
-<text x="538" y="360" font-size="13" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">references</text>
-<text x="470" y="398" font-size="13" font-weight="700" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Confidence (line style)</text>
-<line x1="470" y1="416" x2="522" y2="416" stroke="#0E2A33" stroke-width="2.5"/>
-<text x="538" y="420" font-size="13" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Extracted</text>
-<text x="538" y="435" font-size="10.5" fill="#41606a" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Direct from source (AST / manifest)</text>
-<line x1="470" y1="454" x2="522" y2="454" stroke="#0E2A33" stroke-width="2.5" stroke-dasharray="6 4"/>
-<text x="538" y="458" font-size="13" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Inferred</text>
-<text x="538" y="473" font-size="10.5" fill="#41606a" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Deduced (second-pass / heuristic)</text>
-<line x1="470" y1="492" x2="522" y2="492" stroke="#0E2A33" stroke-width="2.5" stroke-dasharray="2 3"/>
-<text x="538" y="496" font-size="13" fill="#0E2A33" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Ambiguous</text>
-<text x="538" y="511" font-size="10.5" fill="#41606a" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">Uncertain (flagged for review)</text>
+<text x="26" y="52" font-size="14" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">node kinds and edge relations, colored exactly as <tspan font-family="'JetBrains Mono',ui-monospace,monospace" font-size="14">contextlake kb graph</tspan> renders them</text>
+<text x="26" y="90" font-size="14" font-weight="600" fill="#0E2A33" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Node kinds</text>
+<text x="26" y="112" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">SYMBOLS</text>
+<rect x="26" y="119" width="15" height="15" rx="4" fill="#fb8500" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="131" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">class</text>
+<rect x="26" y="141" width="15" height="15" rx="4" fill="#fd9e02" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="153" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">interface</text>
+<rect x="26" y="163" width="15" height="15" rx="4" fill="#f4a261" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="175" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">struct</text>
+<rect x="26" y="185" width="15" height="15" rx="4" fill="#90be6d" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="197" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">function</text>
+<rect x="26" y="207" width="15" height="15" rx="4" fill="#43aa8b" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="219" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">method</text>
+<rect x="26" y="229" width="15" height="15" rx="4" fill="#577590" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="241" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">enum</text>
+<rect x="26" y="251" width="15" height="15" rx="4" fill="#2a9d8f" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="263" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">test</text>
+<rect x="26" y="273" width="15" height="15" rx="4" fill="#8d99ae" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="285" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">field</text>
+<rect x="26" y="295" width="15" height="15" rx="4" fill="#e07a5f" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="307" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">macro</text>
+<rect x="26" y="317" width="15" height="15" rx="4" fill="#81b29a" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="329" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">typedef</text>
+<rect x="26" y="339" width="15" height="15" rx="4" fill="#6d9dc5" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="351" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">enum_constant</text>
+<rect x="26" y="361" width="15" height="15" rx="4" fill="#b08968" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="373" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">global_variable</text>
+<text x="26" y="408" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">CONTAINERS</text>
+<rect x="26" y="415" width="15" height="15" rx="4" fill="#8ecae6" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="427" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">file</text>
+<rect x="26" y="437" width="15" height="15" rx="4" fill="#ffb703" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="449" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">module</text>
+<rect x="26" y="459" width="15" height="15" rx="4" fill="#e76f51" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="471" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">package</text>
+<rect x="26" y="481" width="15" height="15" rx="4" fill="#264653" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="493" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">repo</text>
+<text x="26" y="528" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">SERVICE SURFACES</text>
+<rect x="26" y="535" width="15" height="15" rx="4" fill="#f08c3a" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="547" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">endpoint</text>
+<rect x="26" y="557" width="15" height="15" rx="4" fill="#b07fd0" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="569" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">topic</text>
+<rect x="26" y="579" width="15" height="15" rx="4" fill="#e2711d" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="591" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">route</text>
+<rect x="26" y="601" width="15" height="15" rx="4" fill="#5e548e" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="613" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">state</text>
+<rect x="26" y="623" width="15" height="15" rx="4" fill="#22c55e" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="635" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">entry_point</text>
+<text x="26" y="670" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">DATA MODEL</text>
+<rect x="26" y="677" width="15" height="15" rx="4" fill="#b5179e" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="689" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">table</text>
+<rect x="26" y="699" width="15" height="15" rx="4" fill="#d64ab5" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="711" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">view</text>
+<rect x="26" y="721" width="15" height="15" rx="4" fill="#c98ac0" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="733" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">db_package</text>
+<rect x="26" y="743" width="15" height="15" rx="4" fill="#d9789a" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="755" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">trigger</text>
+<rect x="26" y="765" width="15" height="15" rx="4" fill="#5f7fd4" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="777" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">schema_type</text>
+<rect x="26" y="787" width="15" height="15" rx="4" fill="#8aa7ea" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="799" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">schema_element</text>
+<rect x="26" y="809" width="15" height="15" rx="4" fill="#e0a3d5" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="821" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">procedure</text>
+<text x="26" y="856" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">INFRASTRUCTURE</text>
+<rect x="26" y="863" width="15" height="15" rx="4" fill="#3f37c9" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="875" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">resource</text>
+<rect x="26" y="885" width="15" height="15" rx="4" fill="#5a67d8" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="897" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">data</text>
+<rect x="26" y="907" width="15" height="15" rx="4" fill="#7c83db" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="919" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">variable</text>
+<rect x="26" y="929" width="15" height="15" rx="4" fill="#9aa0e0" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="941" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">output</text>
+<rect x="26" y="951" width="15" height="15" rx="4" fill="#c3c7e8" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="963" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">local</text>
+<text x="26" y="998" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">PRESENTATION</text>
+<rect x="26" y="1005" width="15" height="15" rx="4" fill="#7c3aed" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1017" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">css_class</text>
+<rect x="26" y="1027" width="15" height="15" rx="4" fill="#a855f7" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1039" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">css_id</text>
+<rect x="26" y="1049" width="15" height="15" rx="4" fill="#c084fc" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1061" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">css_element</text>
+<rect x="26" y="1071" width="15" height="15" rx="4" fill="#e879f9" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1083" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">html_id</text>
+<text x="26" y="1118" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">CONFIGURATION</text>
+<rect x="26" y="1125" width="15" height="15" rx="4" fill="#7f8c8d" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1137" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">config_key</text>
+<rect x="26" y="1147" width="15" height="15" rx="4" fill="#f4a261" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1159" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">make_target</text>
+<rect x="26" y="1169" width="15" height="15" rx="4" fill="#2496ed" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1181" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">dockerfile_stage</text>
+<rect x="26" y="1191" width="15" height="15" rx="4" fill="#38bdf8" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1203" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">nix_attr</text>
+<text x="26" y="1238" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">DOCUMENTS</text>
+<rect x="26" y="1245" width="15" height="15" rx="4" fill="#52796f" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1257" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">adr</text>
+<rect x="26" y="1267" width="15" height="15" rx="4" fill="#84a98c" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1279" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">document</text>
+<rect x="26" y="1289" width="15" height="15" rx="4" fill="#354f52" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1301" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">wiki</text>
+<text x="26" y="1336" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">CROSS-SOURCE</text>
+<rect x="26" y="1343" width="15" height="15" rx="4" fill="#bc6c25" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1355" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">issue</text>
+<rect x="26" y="1365" width="15" height="15" rx="4" fill="#606c38" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1377" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">page</text>
+<rect x="26" y="1387" width="15" height="15" rx="4" fill="#9d4edd" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1399" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">design</text>
+<rect x="26" y="1409" width="15" height="15" rx="4" fill="#9c6644" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1421" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">mr</text>
+<rect x="26" y="1431" width="15" height="15" rx="4" fill="#dda15e" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1443" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">message</text>
+<rect x="26" y="1453" width="15" height="15" rx="4" fill="#a68a64" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1465" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">channel</text>
+<text x="26" y="1500" font-size="12" font-weight="600" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">BOUNDARY</text>
+<rect x="26" y="1507" width="15" height="15" rx="4" fill="#3d5a80" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1519" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">namespace</text>
+<rect x="26" y="1529" width="15" height="15" rx="4" fill="#6c757d" stroke="#0E2A33" stroke-opacity=".18"/>
+<text x="50" y="1541" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">system</text>
+<text x="470" y="90" font-size="14" font-weight="600" fill="#0E2A33" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Edge relations</text>
+<line x1="470" y1="108" x2="522" y2="108" stroke="#137A8B" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="112" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">calls</text>
+<line x1="470" y1="132" x2="522" y2="132" stroke="#228f82" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="136" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">imports</text>
+<line x1="470" y1="156" x2="522" y2="156" stroke="#67858b" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="160" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">contains</text>
+<line x1="470" y1="180" x2="522" y2="180" stroke="#a37914" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="184" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">depends_on</text>
+<line x1="470" y1="204" x2="522" y2="204" stroke="#997c40" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="208" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">publishes</text>
+<line x1="470" y1="228" x2="522" y2="228" stroke="#de511a" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="232" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">flow</text>
+<line x1="470" y1="252" x2="522" y2="252" stroke="#c9630f" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="256" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">exposes</text>
+<line x1="470" y1="276" x2="522" y2="276" stroke="#c1440e" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="280" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">calls_http</text>
+<line x1="470" y1="300" x2="522" y2="300" stroke="#577590" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="304" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">tracked_by</text>
+<line x1="470" y1="324" x2="522" y2="324" stroke="#9d4edd" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="328" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">documented_by</text>
+<line x1="470" y1="348" x2="522" y2="348" stroke="#57888f" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="352" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">inherits</text>
+<line x1="470" y1="372" x2="522" y2="372" stroke="#57888f" stroke-width="3" marker-end="url(#ar)"/>
+<text x="538" y="376" font-size="14" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">references</text>
+<text x="470" y="414" font-size="14" font-weight="600" fill="#0E2A33" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Confidence (line style)</text>
+<line x1="470" y1="432" x2="522" y2="432" stroke="#0E2A33" stroke-width="2.5"/>
+<text x="538" y="436" font-size="13" fill="#0E2A33" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Extracted</text>
+<text x="538" y="451" font-size="12" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Direct from source (AST / manifest)</text>
+<line x1="470" y1="470" x2="522" y2="470" stroke="#0E2A33" stroke-width="2.5" stroke-dasharray="6 4"/>
+<text x="538" y="474" font-size="13" fill="#0E2A33" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Inferred</text>
+<text x="538" y="489" font-size="12" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Deduced (second-pass / heuristic)</text>
+<line x1="470" y1="508" x2="522" y2="508" stroke="#0E2A33" stroke-width="2.5" stroke-dasharray="2 3"/>
+<text x="538" y="512" font-size="13" fill="#0E2A33" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Ambiguous</text>
+<text x="538" y="527" font-size="12" fill="#566B70" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">Uncertain (flagged for review)</text>
 </svg>

@@ -1,50 +1,50 @@
 #!/usr/bin/env python3
 """Decision-cascade SVG diagrams: a start chip, decisions along the bottom
 joined by 'no' arrows, each 'yes' branching up to an outcome chip."""
-import pathlib
-IMG = pathlib.Path(__file__).resolve().parents[2] / "docs/img"  # <repo>/docs/img
-DEEP="#0E2A33"; LAKE="#137A8B"; CUR="#2BB3A3"; MIST="#EAF4F4"; INK="#0E2A33"
-MUTED="#41606a"; LINE="#cfe0e3"; SUN="#E7B53C"; GREEN="#2f8f7f"
-FF="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif"
-FM="'JetBrains Mono',ui-monospace,monospace"
+import sys
+
+from gen_diagrams import (  # one writer, one palette, one connector: see gen_diagrams
+    CHIP_H, CUR, RESULT_W, result_dot, DEEP, FI, FM, GAP, INK, LAKE, LINE, MIST, MUTED, RADIUS, SURFACE, TINT,
+    _write, finish, link, marker)
 
 
 def esc(s): return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
 
 
 def cascade(start, steps, tail, fname, title, sub):
-    """start: (label). steps: [(question, yes_label)]. tail: final outcome."""
-    colw, gap = 188, 30
+    """start, each decision, each outcome and tail are nodes: (title, note, note_mono).
+    steps: [(question_node, yes_node)]."""
+    colw, gap = 196, GAP
     n = len(steps)
     pad = 22
-    W = pad*2 + 150 + gap + n*(colw+gap) + 150
+    W = pad*2 + 150 + gap + n*(colw+gap) + 170
     H = 250
     yd = 168   # decision row baseline (centre y)
     yo = 64    # outcome row (centre y)
-    ch = 56
+    ch = CHIP_H
     p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" '
-         f'height="{H}" role="img" aria-label="{esc(title)}" font-family="{FF}">',
-         '<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" '
-         f'markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="{LAKE}"/></marker>'
-         '<marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" '
-         f'markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="{GREEN}"/></marker></defs>']
+         f'height="{H}" role="img" aria-label="{esc(title)}" font-family="{FI}">',
+         f'<defs>{marker()}</defs>']
     if sub:
         p.append(f'<text x="{pad}" y="26" font-size="13" font-weight="600" fill="{MUTED}">{esc(sub)}</text>')
 
-    def chip(x, y, w, label, fill, stroke, tcol, mono=False, h=ch, fs=14):
-        ff = FM if mono else FF
-        p.append(f'<rect x="{x}" y="{y-h//2}" width="{w}" height="{h}" rx="12" fill="{fill}" '
-                 f'stroke="{stroke}" stroke-width="1.5"/>')
-        # wrap up to 2 lines on " / " or " "
-        words = label.split("  ")
-        if len(words) == 1:
+    def chip(x, y, w, node, fill, stroke, tcol, mono=False, h=ch, fs=14, result=False):
+        """node: (title, note, note_mono). A note is a second, smaller line."""
+        title, note, note_mono = node
+        ff = FM if mono else FI
+        p.append(f'<rect x="{x}" y="{y-h//2}" width="{w}" height="{h}" rx="{RADIUS}" fill="{fill}" '
+                 f'stroke="{stroke}" stroke-width="{RESULT_W if result else 1.5}"/>')
+        if result:
+            p.append(result_dot(x, y - h//2, w))
+        if not note:
             p.append(f'<text x="{x+w//2}" y="{y+5}" text-anchor="middle" font-size="{fs}" '
-                     f'font-weight="600" fill="{tcol}" font-family="{ff}">{esc(label)}</text>')
+                     f'font-weight="{500 if mono else 600}" fill="{tcol}" font-family="{ff}">{esc(title)}</text>')
         else:
+            nf = FM if note_mono else FI
             p.append(f'<text x="{x+w//2}" y="{y-3}" text-anchor="middle" font-size="{fs}" '
-                     f'font-weight="600" fill="{tcol}" font-family="{ff}">{esc(words[0])}</text>')
-            p.append(f'<text x="{x+w//2}" y="{y+15}" text-anchor="middle" font-size="11.5" '
-                     f'fill="{MUTED}" font-family="{FF}">{esc(words[1])}</text>')
+                     f'font-weight="{500 if mono else 600}" fill="{tcol}" font-family="{ff}">{esc(title)}</text>')
+            p.append(f'<text x="{x+w//2}" y="{y+15}" text-anchor="middle" font-size="12" '
+                     f'fill="{MUTED}" font-family="{nf}">{esc(note)}</text>')
 
     # start chip (deepwater)
     sx = pad
@@ -53,40 +53,50 @@ def cascade(start, steps, tail, fname, title, sub):
     for i, (q, yes) in enumerate(steps):
         x = pad + 150 + gap + i*(colw+gap)
         # 'no' arrow into this decision
-        p.append(f'<line x1="{prev_r+3}" y1="{yd}" x2="{x-6}" y2="{yd}" stroke="{LAKE}" '
-                 f'stroke-width="2" marker-end="url(#a)"/>')
+        p.append(link(prev_r+3, yd, x-6, yd))
         if i > 0:
-            p.append(f'<text x="{(prev_r+x)//2}" y="{yd-8}" text-anchor="middle" font-size="11" '
+            p.append(f'<text x="{(prev_r+x)//2}" y="{yd-8}" text-anchor="middle" font-size="12" '
                      f'fill="{MUTED}">no</text>')
         # decision chip
-        chip(x, yd, colw, q, "#eef6f7", LAKE, INK, h=62, fs=13.5)
+        chip(x, yd, colw, q, MIST, LAKE, INK, h=ch, fs=14)
         # 'yes' arrow up to outcome
         cx = x + colw//2
-        p.append(f'<line x1="{cx}" y1="{yd-32}" x2="{cx}" y2="{yo+ch//2+3}" stroke="{GREEN}" '
-                 f'stroke-width="2" marker-end="url(#ag)"/>')
-        p.append(f'<text x="{cx+12}" y="{(yd+yo)//2}" font-size="11" fill="{GREEN}" '
+        p.append(link(cx, yd-32, cx, yo+ch//2+3))
+        p.append(f'<text x="{cx+12}" y="{(yd+yo)//2}" font-size="12" fill="{LAKE}" '
                  f'font-weight="600">yes</text>')
-        chip(x, yo, colw, yes, "#e4f5f1", CUR, INK, mono=True, fs=13.5)
+        chip(x, yo, colw, yes, TINT, CUR, INK, mono=True, fs=14, result=True)
         prev_r = x + colw
     # tail outcome (final 'no')
     tx = prev_r + gap
-    p.append(f'<line x1="{prev_r+3}" y1="{yd}" x2="{tx-6}" y2="{yd}" stroke="{LAKE}" '
-             f'stroke-width="2" marker-end="url(#a)"/>')
-    p.append(f'<text x="{(prev_r+tx)//2}" y="{yd-8}" text-anchor="middle" font-size="11" fill="{MUTED}">no</text>')
-    chip(tx, yd, 150, tail, "#f3f7f8", LINE, MUTED, mono=True)
+    p.append(link(prev_r+3, yd, tx-6, yd))
+    p.append(f'<text x="{(prev_r+tx)//2}" y="{yd-8}" text-anchor="middle" font-size="12" fill="{MUTED}">no</text>')
+    chip(tx, yd, 170, tail, SURFACE, LINE, MUTED, mono=True)
     p.append("</svg>")
-    (IMG/fname).write_text("\n".join(p), encoding="utf-8")
-    print("wrote", fname, f"({W}x{H})")
+    _write(fname, p, W, H)
 
 
-cascade("provider = auto",
-        [("local Ollama reachable?", "use  Ollama"),
-         ("built-in extra installed?", "built-in  CPU model")],
-        "skip  this tier",
-        "provider-resolution.svg", "Provider auto-resolution", "provider = auto resolves to")
+def main(png=False):
+    """Regenerate the two decision cascades into gen_diagrams.IMG."""
+    # Mirrors src/contextlake/kb/embeddings/base.py `_resolve_auto_embedder` and
+    # kb/llm/base.py `_resolve_auto_llm`: Ollama needs the daemon AND the target model.
+    cascade(("provider = auto", "", False),
+            [(("Ollama reachable?", "AND target model pulled", False), ("use Ollama", "local model", False)),
+             (("built-in extra installed?", "", False), ("use built-in", "CPU model", False))],
+            ("skip", "this tier", False),
+            "provider-resolution.svg", "Provider auto-resolution", "provider = auto resolves to")
 
-cascade("clean repo?",
-        [("dirty working tree?", "skip  (stash if auto_stash)"),
-         ("branches off a safe branch?", "leave  (protect_working_branches)")],
-        "act  update / switch",
-        "branch-safety.svg", "Branch-safety decision", "what happens to each repo")
+    # Mirrors core.py: update_repository stashes only when auto_stash is set; the branch
+    # switch path skips a dirty tree outright, then skips when `protect and not
+    # is_safe_branch(current)`. The skip fires on a NON-safe branch.
+    cascade(("each repo", "", False),
+            [(("dirty working tree?", "require_clean_workspace", True),
+              ("skip", "update stashes if auto_stash", False)),
+             (("on a non-safe branch?", "protect_working_branches", True),
+              ("leave", "no switch, pull still runs", False))],
+            ("act", "pull or switch branch", False),
+            "branch-safety.svg", "Branch-safety decision", "what update and branches do to each repo")
+    finish(png)
+
+
+if __name__ == "__main__":
+    main(png="--png" in sys.argv[1:])

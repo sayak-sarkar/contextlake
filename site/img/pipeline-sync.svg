@@ -1,27 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 970 132" width="970" height="132" role="img" aria-label="contextlake mirror sync pipeline" font-family="'Space Grotesk',-apple-system,Segoe UI,Roboto,sans-serif">
-<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#137A8B"/></marker></defs>
-<text x="24" y="26" font-size="13" font-weight="600" fill="#41606a" letter-spacing=".02em">contextlake mirror sync</text>
-<rect x="24" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
-<text x="90" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">fetch</text>
-<text x="90" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">list repos</text>
-<line x1="159" y1="70" x2="177" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
-<rect x="182" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
-<text x="248" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">clone</text>
-<text x="248" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">missing</text>
-<line x1="317" y1="70" x2="335" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
-<rect x="340" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
-<text x="406" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">update</text>
-<text x="406" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">pull</text>
-<line x1="475" y1="70" x2="493" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
-<rect x="498" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
-<text x="564" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">branches</text>
-<text x="564" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">most active</text>
-<line x1="633" y1="70" x2="651" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
-<rect x="656" y="41" width="132" height="58" rx="12" fill="#EAF4F4" stroke="#cfe0e3" stroke-width="1.5"/>
-<text x="722" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">verify</text>
-<text x="722" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">structure</text>
-<line x1="791" y1="70" x2="809" y2="70" stroke="#137A8B" stroke-width="2" marker-end="url(#ar)"/>
-<rect x="814" y="41" width="132" height="58" rx="12" fill="#e4f5f1" stroke="#2BB3A3" stroke-width="1.5"/>
-<text x="880" y="67" text-anchor="middle" font-size="15" font-weight="600" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">audit</text>
-<text x="880" y="86" text-anchor="middle" font-size="10.5" fill="#41606a">health</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 990 130" width="990" height="130" role="img" aria-label="contextlake mirror sync pipeline" font-family="Inter,-apple-system,Segoe UI,Roboto,sans-serif">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path d="M0 0L10 5L0 10z" fill="#137A8B"/></marker></defs>
+<text x="24" y="26" font-size="13" font-weight="600" fill="#566B70" letter-spacing=".02em">contextlake mirror sync</text>
+<rect x="24" y="44" width="132" height="56" rx="12" fill="#EAF4F4" stroke="#D2E0E0" stroke-width="1.5"/>
+<text x="90" y="69" text-anchor="middle" font-size="15" font-weight="500" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">fetch</text>
+<text x="90" y="88" text-anchor="middle" font-size="12" fill="#566B70">list repos</text>
+<line x1="159" y1="72" x2="181" y2="72" stroke="#137A8B" stroke-width="1.75" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="186" y="44" width="132" height="56" rx="12" fill="#EAF4F4" stroke="#D2E0E0" stroke-width="1.5"/>
+<text x="252" y="69" text-anchor="middle" font-size="15" font-weight="500" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">clone</text>
+<text x="252" y="88" text-anchor="middle" font-size="12" fill="#566B70">missing</text>
+<line x1="321" y1="72" x2="343" y2="72" stroke="#137A8B" stroke-width="1.75" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="348" y="44" width="132" height="56" rx="12" fill="#EAF4F4" stroke="#D2E0E0" stroke-width="1.5"/>
+<text x="414" y="69" text-anchor="middle" font-size="15" font-weight="500" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">update</text>
+<text x="414" y="88" text-anchor="middle" font-size="12" fill="#566B70">pull</text>
+<line x1="483" y1="72" x2="505" y2="72" stroke="#137A8B" stroke-width="1.75" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="510" y="44" width="132" height="56" rx="12" fill="#EAF4F4" stroke="#D2E0E0" stroke-width="1.5"/>
+<text x="576" y="69" text-anchor="middle" font-size="15" font-weight="500" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">branches</text>
+<text x="576" y="88" text-anchor="middle" font-size="12" fill="#566B70">most active</text>
+<line x1="645" y1="72" x2="667" y2="72" stroke="#137A8B" stroke-width="1.75" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="672" y="44" width="132" height="56" rx="12" fill="#EAF4F4" stroke="#D2E0E0" stroke-width="1.5"/>
+<text x="738" y="69" text-anchor="middle" font-size="15" font-weight="500" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">verify</text>
+<text x="738" y="88" text-anchor="middle" font-size="12" fill="#566B70">structure</text>
+<line x1="807" y1="72" x2="829" y2="72" stroke="#137A8B" stroke-width="1.75" stroke-linecap="round" marker-end="url(#ar)"/>
+<rect x="834" y="44" width="132" height="56" rx="12" fill="#D3ECEA" stroke="#2BB3A3" stroke-width="2.5"/>
+<circle cx="952" cy="58" r="4" fill="#E7B53C"/>
+<text x="900" y="69" text-anchor="middle" font-size="15" font-weight="500" fill="#0E2A33" font-family="'JetBrains Mono',ui-monospace,monospace">audit</text>
+<text x="900" y="88" text-anchor="middle" font-size="12" fill="#566B70">health</text>
 </svg>
