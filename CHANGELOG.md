@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.2] - 2026-11-08
+
+A docs-only release. The code is the same as 10.0.1; the changes are in the docs and the docs
+site build.
+
+### Fixed
+
+- **Docs pages no longer scroll sideways on phones.** At 375px the header was 6px wider than the
+  screen (10.0.0 and 10.0.1 have it too). Below 480px the GitHub button shows its icon only and
+  keeps its accessible name.
+- **The docs navigation works without JavaScript on phones.** Below 860px it hid behind the
+  "Browse docs" toggle, which needs JavaScript to open, so with JavaScript off it could not be
+  reached. It now hides behind the toggle only when JavaScript runs.
+
+### Changed
+
+- The installing and scheduling pages have their Pebble pictures.
+- `docs/using-the-dashboard.md` shows the Data flow tab, in light and dark, from a live dashboard.
+
 ## [10.0.1] - 2026-11-08
 
 A docs-only release. The code is the same as 10.0.0; the changes are in the docs, the docs site
