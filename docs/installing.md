@@ -22,7 +22,7 @@ flowchart TD
 
 <div class="dg-key">
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
-  <i><b class="dg-sh-step"></b>a rectangle is a channel below</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a step or an option you can take</i>
   <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
@@ -97,8 +97,8 @@ flowchart LR
 ```
 
 <div class="dg-key">
-  <i><b class="dg-sh-step"></b>a rectangle is a goal</i>
-  <i><b class="dg-sh-act"></b>a rounded box is the question, or the extra to install</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a step or an option you can take</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point: the question, or the extra to install</i>
 </div>
 
 A scanned PDF has no text layer, and OCR does not cover it. See [Document sources](document-sources.md).

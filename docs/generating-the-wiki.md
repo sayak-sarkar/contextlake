@@ -7,7 +7,10 @@ Every indexed repository gets one wiki page per scope, and it exists the moment 
 the checkout, with no language model involved. If an LLM is configured, it then drafts prose from that
 page, and the prose replaces it only when the prose is at least as accurate and as complete.
 
-So the page you read is one of two things, and it always says which.
+So the page you read is one of two things, and it always says which. The diagram below is the
+per-repository path. A cluster page (`--namespace`) skips the "accurate and at least as complete"
+step, because it has no structural page to replace. It goes from the structural check straight to
+the council. See [cluster pages](#cluster-namespace-wiki).
 
 ```mermaid
 flowchart TD
@@ -22,7 +25,7 @@ flowchart TD
   SG -->|yes| RG{"accurate and at least<br/>as complete?"}
   RG -->|no| K
   RG -->|yes| C["the verification council,<br/>one review per lens"]
-  C --> S{"mean score above accept_score?"}
+  C --> S{"mean score at or above accept_score?"}
   S -->|no| K
   S -->|yes| W
 ```
@@ -94,8 +97,9 @@ which is what makes publishing from a cheap local generator safe.
 
 Two ways to turn the tier on.
 
-- **In the config**, by enabling `[llm]`. Generation runs on a local Ollama model by default, so
-  prompts never leave the machine.
+- **In the config**, by enabling `[llm]`. With `[llm]` enabled, `provider = "auto"` (the default) uses a
+  local Ollama if it has the model, else the built-in CPU model. The built-in model runs in-process. Ollama runs on this machine
+  while `base_url` is loopback (the default).
 - **Inline**, with `--llm <provider>`, skipping the toml entirely. Providers: `builtin`,
   `ollama`, `openai`, `anthropic`, `cli`, `auto`.
 

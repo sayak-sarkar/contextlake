@@ -94,8 +94,16 @@ machine-learning stack to be installable. The knowledge layer is the `[kb]` extr
 Python 3.10 or newer, because the `mcp` SDK does.
 
 Everything runs on your machine. The repositories, the graph, the vectors and the generated prose
-are local files. The only outbound traffic is cloning from your own git host, the optional
-connectors, and a model provider if you choose one that is not local.
+are local files. The only outbound traffic is:
+
+- cloning from your own git host
+- the optional connectors
+- a model provider, if you choose one that is not local
+- a one-time download of the built-in models from Hugging Face, on first use of a built-in
+  engine (the `kb-local`, `kb-fastembed` or `llm-local` extra). With provider `auto`, it happens
+  only when no local Ollama supplies the model. It never happens in offline mode.
+- a one-time download of the speech model from Hugging Face, on first use of transcription (the
+  `kb-transcribe` extra)
 
 ## Why it is built this way
 
@@ -205,18 +213,24 @@ silently changing the mode of a path you pointed the tool at is a side effect no
 ### Config that spends a capability is trusted by provenance, not by content
 
 Config is discovered by walking up from the current directory, the way git finds `.git`. That is
-the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Three
-classes of setting are honoured only from a file you named with `--config` or from your
+the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Five
+groups of setting are honoured only from a file you named with `--config` or from your
 own home config:
 
 - the ones that make contextlake *run a program* (`[llm] command`/`args`, `provider = "cli"`,
   `[[sources]] command`/`args`/`mcp_command`)
-- the ones that choose *where a request goes* (`base_url`, `[[sources]] mcp`)
+- the ones that choose *where a request goes* (`base_url`, `[[sources]] mcp`, `search_url`,
+  `gitlab_hosts`)
 - the ones that name *which environment variable holds the credential* sent with it
   (`api_key_env`, `[[sources]] token_env`, plus `auth` and `user`, which choose how that credential
-  is sent, and `auth_dir`, the directory an OAuth refresh token is written to)
+  is sent)
+- the one that chooses the folder an OAuth refresh token is written to (`auth_dir`)
+- the one that chooses the folder the built-in models download into (`cache_dir`)
 
-The first class was the whole gate to begin with, and reading the others as "not argv, so not this
+`[llm] review_provider` is also dropped when it names a vendor that receives an API key. The
+[configuration page](configuration.md#workspace-trust) has the full table.
+
+The first group was the whole gate to begin with, and reading the others as "not argv, so not this
 gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
 capability arriving in two pieces.
 
@@ -312,7 +326,8 @@ flowchart TD
   P -->|"containment, straight off<br/>the syntax tree"| E1[("an edge stored EXTRACTED")]
   P --> N["a call, matched by name"]
   N -->|"exactly one definition"| E2[("stored INFERRED")]
-  N -->|"several definitions"| E3[("stored AMBIGUOUS, with<br/>how many candidates")]
+  N -->|"2 to 10 definitions"| E3[("stored AMBIGUOUS, with<br/>how many candidates")]
+  N -.->|"more than 10 definitions"| DR(["no edge written,<br/>counted as dropped"])
 ```
 
 <div class="dg-key">
@@ -354,10 +369,11 @@ can reproduce is worth more than an adjective.
 
 A graph answers precise questions well and vague ones badly. "Who calls this function" is a
 traversal; "what does this service do, and why" is not stored anywhere and has to be written. So
-contextlake generates a wiki, which reintroduces exactly the risk it exists to remove: a model
-writing about code will invent things.
+contextlake generates a wiki. By default each page is structural, built from the graph with no
+model. The model tier is off until you enable `[llm]`. Once it is on, it drafts prose, which brings
+back the risk contextlake exists to remove: a model writing about code will invent things.
 
-Four mechanisms constrain it, and the third is the most interesting because of what it says about
+Four mechanisms constrain the model tier, and the third is the most interesting because of what it says about
 the second.
 
 1. **Grounding.** The model is handed a brief assembled from the graph, with file and line
@@ -380,8 +396,8 @@ front of the council:
 
 ```mermaid
 flowchart LR
-  G["a brief assembled from the graph,<br/>file and line references attached"] --> D["the model drafts a page"]
-  D --> GATE["a deterministic gate: leaked<br/>instruction text, repeated sentences"]
+  G["a brief assembled from the graph,<br/>file and line references attached"] --> D["the model drafts a page<br/>(only when the model tier is on)"]
+  D --> GATE{"a deterministic gate: leaked<br/>instruction text, repeated sentences"}
   GATE -->|"fails"| REJ(["reported as rejected,<br/>not published"])
   GATE -->|"passes"| CO["a review council scores<br/>the draft against the graph"]
   CO -->|"below the accept threshold"| REJ
@@ -392,6 +408,7 @@ flowchart LR
   <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
 The gate's thresholds are measured, not picked.

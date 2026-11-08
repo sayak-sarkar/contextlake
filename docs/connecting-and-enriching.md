@@ -10,7 +10,7 @@ queries connected sources with codebase-derived terms and stores what comes back
 flowchart LR
   C(["tracker, designs, merge<br/>requests, chat"]) --> CON["kb connect"]
   I(["files, web, api, graphql,<br/>another MCP server"]) --> ING["kb ingest"]
-  Q(["the searchable ones: Atlassian,<br/>or an MCP search tool"]) --> ENR["kb enrich"]
+  Q(["the searchable ones: Atlassian,<br/>an MCP search tool, or an api<br/>source with search_url"]) --> ENR["kb enrich"]
   G[("the code graph")] -.->|"repo name and top symbols<br/>become the search terms"| ENR
   CON --> P[("isolated partitions")]
   ING --> P

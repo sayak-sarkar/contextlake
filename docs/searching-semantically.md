@@ -21,6 +21,7 @@ flowchart LR
   V --> R
   G[("the graph")] -.->|"hybrid propagates<br/>relevance across it"| R
   R --> H(["cited hits: repo, file:line,<br/>kind, name"])
+  R -.->|"kb query only: no embedder,<br/>no vectors yet, or the retriever failed"| FTS(["full-text (fts) results<br/>instead"])
 ```
 
 <div class="dg-key">

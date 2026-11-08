@@ -19,7 +19,7 @@ contextlake kb graph --repo acme/forecast-api          # one repo's internal cod
 flowchart LR
   A(["contextlake kb graph"]) --> S1["--node / --name / --search<br/>walks outward: --hops,<br/>--relation, --direction"]
   A --> S2["--repo, one repo,<br/>no outward walk"]
-  A --> S3["--overview, the fleet,<br/>--max-nodes alone"]
+  A --> S3["--overview, the fleet,<br/>--max-nodes sets the cap<br/>(default 5000)"]
   S1 --> B["every view is capped, and<br/>whatever is dropped is logged"]
   S2 --> B
   S3 --> B
@@ -125,8 +125,8 @@ Output is chosen with `--format`:
       their labels hidden until you click a node (so the view stays readable).
     - Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`, `breadthfirst`, `circle`,
       `grid`, `dagre`) in the page. Set the initial one with `--layout`.
-    - `dagre` is a preview: it is layered and directed rather than organic, and below 400 nodes it
-      renders each node as an HTML card instead of a dot.
+    - `dagre` is a preview: it is layered and directed, not organic, and at 400 nodes or
+      fewer it renders each node as an HTML card instead of a dot.
     - `--site DIR` writes into a new or empty folder, or into a folder an earlier `--site` export
       made. Each export leaves a `.contextlake-export` file in the folders it writes and looks
       for it on the next run.

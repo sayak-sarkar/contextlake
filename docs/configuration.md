@@ -28,15 +28,16 @@ The walk stops at the filesystem root, and the *nearest* ancestor wins if projec
 
 ## Using configuration files
 
-Configuration is loaded in this precedence order:
+Configuration is loaded in this precedence order, highest first:
 
-1. **Local config**: the nearest ancestor directory's `.contextlake.ini`, walking up from the current
-   directory to the filesystem root (like git's `.git` discovery), highest priority. A config at your
+1. **CLI arguments**: override all other settings
+2. **A `--config PATH` file**: the file you name on the command line
+3. **Local config**: the nearest ancestor directory's `.contextlake.ini`, walking up from the current
+   directory to the filesystem root (like git's `.git` discovery). A config at your
    project root is inherited by every subdirectory underneath it; you don't need to be in the exact
    directory that holds the file.
-2. **Global config**: `~/.contextlake.ini` in the home directory
-3. **Default values**: built-in defaults (lowest priority)
-4. **CLI arguments**: override all other settings
+4. **Global config**: `~/.contextlake.ini` in the home directory
+5. **Default values**: built-in defaults (lowest priority)
 
 <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/configuration.webp" alt="Pebble holding a stack of pebbles, to picture the config sources that are layered on top of each other." width="1200" height="800" loading="lazy">
 

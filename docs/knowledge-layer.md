@@ -18,7 +18,7 @@ flowchart LR
   IDX -.->|"parses source"| G[("the graph")]
   CON -.->|"links tickets,<br/>designs, threads"| G
   EMB -.->|"builds vectors"| V[("vectors")]
-  WIK -.->|"writes cited prose"| W[("wiki pages")]
+  WIK -.->|"writes structural pages,<br/>plus cited prose when the model tier is on"| W[("wiki pages")]
   SRV --> AG(["your AI tools,<br/>answering with citations"])
 ```
 

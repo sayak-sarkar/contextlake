@@ -36,12 +36,16 @@ flowchart TD
   B -->|yes| ONE["indexed as one repository"]
   B -->|no| G{"is it itself a git repo?"}
   G -->|yes| ONE
-  G -->|no| S{"does it hold git repos, with<br/>nothing of yours outside them?"}
-  S -->|no| ONE
+  G -->|no| S{"does it hold several git repos, with only a<br/>trivial share of files outside them?"}
   S -->|yes| R(["refused, naming the command that fits"])
-  R -.->|"kb index --workspace"| EACH["each repo indexed under its own id"]
+  S -->|no| O{"does it hold one git repo,<br/>with nothing outside it?"}
+  O -->|yes| R2(["refused, naming the command that fits"])
+  O -->|no| ONE
+  R -.->|"several repos:<br/>kb index --workspace"| EACH["each repo indexed under its own id"]
+  R2 -.->|"kb index on that repo"| SOLO["that repo indexed under its own id"]
   ONE --> GR[("the graph")]
   EACH --> GR
+  SOLO --> GR
 ```
 
 <div class="dg-key">
@@ -88,7 +92,7 @@ Only then does it decide:
 
 | What the directory looks like | What happens |
 | --- | --- |
-| Several repositories, and nothing of your own outside them | refused; run `--workspace <dir>` |
+| Several repositories, and little of your own outside them (10 files or fewer, or 5% or less of the indexable files) | refused; run `--workspace <dir>` |
 | One repository, nothing at all outside it | refused; the directory is one level too high, and the command names the repository |
 | Real content of yours outside the repositories (your sources plus a vendored dependency) | indexed as one repository, with a line saying so |
 | A git repository (`.git` present), whatever it contains | indexed, no diagnosis at all |

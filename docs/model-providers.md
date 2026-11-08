@@ -17,8 +17,8 @@ flowchart LR
   P -->|"ollama"| OL["a local Ollama daemon"]
   P -->|"openai, plus anthropic<br/>for the wiki"| API["a hosted API, key<br/>read from an env var"]
   P -->|"cli, for the wiki"| C["an agent CLI you<br/>already pay for"]
-  BI --> IN(["nothing leaves your machine"])
-  OL --> IN
+  BI --> BIN(["no prompt leaves your machine<br/>(the model downloads once)"])
+  OL --> IN(["nothing leaves your machine while<br/>base_url is loopback (the default)"])
   API --> OUT(["your prompts leave your machine"])
   C --> OUT
 ```

@@ -13,7 +13,7 @@ build step, one command and it opens in your browser. Read-only by default; see
 
 ```mermaid
 flowchart LR
-  G[("the code graph")] --> A(["Fleet, Repo, Diagrams,<br/>Architecture, Blast radius, Path"])
+  G[("the code graph")] --> A(["Fleet, Repo (with its Diagrams tab),<br/>Architecture, Blast radius, Path,<br/>Health, Search"])
   W[("the generated wiki")] --> B(["a repo's page, and its Wiki tab"])
   G --> C(["Chat: a free graph router,<br/>with opt-in LLM prose"])
   P["this machine and this process,<br/>not the graph"] --> D(["MCP console, Settings"])

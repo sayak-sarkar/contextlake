@@ -17,17 +17,16 @@ is wrong, so it is almost always faster than reading down this page:
 ```mermaid
 flowchart TD
   D(["contextlake doctor"]) --> Q{"what did it report?"}
-  Q -->|"an import or extra is missing"| I["the knowledge layer<br/>will not install"]
+  Q -->|"an import or extra is missing"| I(["the knowledge layer<br/>will not install"])
   Q -->|"a compiler error"| I
-  Q -->|"externally managed<br/>environment"| E["pip refuses to<br/>install into the system"]
-  Q -->|"it printed a sudo<br/>command"| S["doctor --fix declined<br/>to run it for you"]
-  Q -->|"all green, but a<br/>repo is wrong"| M["the mirror"]
+  Q -->|"externally managed<br/>environment"| E(["pip refuses to<br/>install into the system"])
+  Q -->|"it printed a sudo<br/>command"| S(["doctor --fix declined<br/>to run it for you"])
+  Q -->|"all green, but a<br/>repo is wrong"| M(["the mirror"])
   Q -->|"nothing above"| O(["open an issue"])
 ```
 
 <div class="dg-key">
-  <i><b class="dg-sh-act"></b>a rounded box is something you run or do</i>
-  <i><b class="dg-sh-step"></b>a rectangle is a section on this page</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point: the command, or the section below that covers the symptom</i>
   <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
