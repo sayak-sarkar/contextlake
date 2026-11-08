@@ -10596,9 +10596,12 @@ site build.
 
 ### Fixed
 
-- **Docs pages no longer scroll sideways on phones.** At 375px the header was 6px wider than the
-  screen (10.0.0 and 10.0.1 have it too). Below 480px the GitHub button shows its icon only and
-  keeps its accessible name.
+- **Docs pages no longer scroll sideways on phones.** Measured on all 38 docs pages at 375px and
+  320px. Three causes, each in 10.0.0 and 10.0.1 too: the header was 6px wider than the screen
+  (below 480px the GitHub button now shows its icon only and keeps its accessible name); a long
+  word with no break point, such as a slash-joined list, widened a page to 474px (prose now breaks
+  such a word); and at 320px a long one-word title and the Pebble did not fit side by side (below
+  400px both are smaller).
 - **The docs navigation works without JavaScript on phones.** Below 860px it hid behind the
   "Browse docs" toggle, which needs JavaScript to open, so with JavaScript off it could not be
   reached. It now hides behind the toggle only when JavaScript runs.
