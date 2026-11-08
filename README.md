@@ -62,33 +62,35 @@ each layer above it is optional.
 
 Each layer has its own guide:
 
-- [Mirror repositories](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)
+- [Mirroring repositories](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)
 - [Configuration](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)
-- [Knowledge layer](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)
-- [QUICKSTART](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md), the whole flow start to finish
+- [The knowledge layer](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)
+- [Quickstart](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md), the whole flow start to finish
 
 ## Install
 
 ```bash
-pip install "contextlake[kb]"       # the full tool: mirror + graph, search, wiki, MCP server
+pip install "contextlake[kb-full]"  # the full tool: mirror, graph, local semantic search, wiki, MCP server
 pip install contextlake             # mirror-only core (one dependency: argcomplete)
 ```
 
-Everything in the quickstart below needs the `[kb]` extra (Python 3.10+); the plain
-install is just the mirroring CLI. Both need Python 3.10 or newer: one floor for the whole
-tool, since the split floor the mirror core used to allow only ever surprised people.
+`[kb-full]` is the default choice. It adds the built-in embedder, so semantic search
+needs no Ollama and no API key. `[kb]` is the knowledge layer without the embedder and the sqlite-vec backend. The
+plain install is just the mirroring CLI. The
+[extras table](https://github.com/sayak-sarkar/contextlake/blob/main/docs/installing.md#the-extras-and-which-one-you-want)
+lists every option. Both need Python 3.10 or newer. One version covers the whole tool.
 
 Prefer an isolated, zero-setup install? [`uv`](https://docs.astral.sh/uv/) fetches the right
 Python and an isolated environment for you:
 
 ```bash
-uv tool install "contextlake[kb]"            # install the CLI on your PATH
-uvx --from "contextlake[kb]" contextlake --help   # …or run it once, without installing
-# pipx install "contextlake[kb]"             # pipx works too
+uv tool install "contextlake[kb-full]"            # install the CLI on your PATH
+uvx --from "contextlake[kb-full]" contextlake --help   # …or run it once, without installing
+# pipx install "contextlake[kb-full]"             # pipx works too
 ```
 
 Docker, the standalone binaries, the full extras table, upgrading, and uninstalling all live
-on one page: **[Install and upgrade](https://github.com/sayak-sarkar/contextlake/blob/main/docs/installing.md)**.
+on one page: **[Installing and upgrading](https://github.com/sayak-sarkar/contextlake/blob/main/docs/installing.md)**.
 If an install misbehaves, see
 **[Troubleshooting](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**.
 
@@ -103,7 +105,7 @@ neither. Once installed, `contextlake` and `python -m contextlake` are equivalen
 
 You don't need GitLab or any config to try contextlake on a repo you already have.
 No install? Run it once with [`uvx`](https://docs.astral.sh/uv/): prefix any command
-below with `uvx --from "contextlake[kb]"` (e.g. `uvx --from "contextlake[kb]" contextlake kb index --source .`).
+below with `uvx --from "contextlake[kb-full]"` (e.g. `uvx --from "contextlake[kb-full]" contextlake kb index --source .`).
 
 ```bash
 contextlake kb index                     # parse the current repo into a local knowledge graph
@@ -116,7 +118,7 @@ contextlake kb serve                     # …or serve it to your AI IDE over MC
 
 ```bash
 claude mcp add contextlake-kb -- contextlake kb serve      # Claude Code
-# zero-install variant: claude mcp add contextlake-kb -- uvx --from "contextlake[kb]" contextlake kb serve
+# zero-install variant: claude mcp add contextlake-kb -- uvx --from "contextlake[kb-full]" contextlake kb serve
 ```
 
 <p align="center">
@@ -127,8 +129,8 @@ claude mcp add contextlake-kb -- contextlake kb serve      # Claude Code
 Everything lands in a local store (`~/.contextlake/kb`), nothing leaves your machine. Index
 any path with `--source PATH`, or every git repo under a directory with `--workspace DIR`.
 
-> **Want the full path**, mirror a GitLab fleet → graph → wired editor in a few minutes?
-> [**QUICKSTART.md**](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md) walks the whole flow.
+> **Want the full path**, mirror a GitLab fleet → graph → wired editor?
+> [Quickstart](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md) walks the whole flow.
 
 ## Fleet mode: mirror a whole org
 
@@ -211,7 +213,7 @@ For runs nobody watches, the systemd timer in [`examples/`](https://github.com/s
 second set: `--log-format json` (one JSON object per line, every line stamped with a run id),
 `--metrics-file PATH` (Prometheus textfile-collector output), `--redact` (the `--log-file` copy
 is already scrubbed of workspace paths, group and repo names), and `--access-log`. See
-[Reading the console output](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md).
+[Console output](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md).
 
 ## Knowledge layer
 
@@ -235,7 +237,7 @@ One command sets it all up (configs are read from their default locations):
 contextlake bootstrap
 ```
 
-Full guide: **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**.
+Full guide: **[The knowledge layer](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**.
 
 ### The dashboard
 
@@ -256,7 +258,7 @@ Want to look first? `contextlake kb dashboard --serve --sample` needs no setup a
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/fleet-cards.png" alt="The contextlake dashboard fleet overview: stat cards, a knowledge-confidence bar, and repos grouped by namespace, with a Cards/List/Table/Treemap layout switcher." width="820">
 </p>
 
-**[The dashboard: a guided tour](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md)**, step by step, with screenshots.
+**[Using the dashboard](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md)**, step by step, with screenshots.
 
 ## Local by default, and you can prove it
 
@@ -302,7 +304,7 @@ everything and opens in an air-gapped browser.
 
 contextlake follows [Semantic Versioning](https://semver.org/). **From 8.0.0, no breaking
 change lands without a major bump**, and 8.0.0 is out: the promise is in force. Breaks before
-it are named in [CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
+it are named in the [changelog](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)
 with what to change.
 
 8.0.0 is the release the promise starts binding in, not a renumbering. A reset to 1.0.0 was
@@ -334,33 +336,33 @@ every upgrade into a red check for something that is working correctly.
 
 ## Documentation
 
-- **[QUICKSTART.md](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor, in minutes
-- **[docs/installing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/installing.md)**, every install channel, upgrading, and uninstalling
-- **[docs/troubleshooting.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**, it broke, now what
-- **[docs/using-the-dashboard.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md)**, the dashboard, a guided tour with screenshots
-- **[docs/cli-reference.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/cli-reference.md)**, every command and flag, plus shell completion
-- **[docs/console-output.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md)**, decoding a run: glyphs, exit codes, JSON logs, metrics
-- **[docs/configuration.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, where settings live and which one wins
-- **[docs/mirroring-repositories.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**, the mirror commands and branch safety
-- **[docs/scheduling.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure
-- **[docs/knowledge-layer.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
-- **[docs/indexing-the-code-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
-- **[docs/connecting-and-enriching.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the ten source types
-- **[docs/searching-semantically.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/searching-semantically.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
-- **[docs/generating-the-wiki.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-the-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
-- **[docs/generating-documentation.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-documentation.md)**, `kb docs`, an API reference with real call sites, no model
-- **[docs/model-providers.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/model-providers.md)**, choosing an embeddings and wiki backend
-- **[docs/visualizing-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/visualizing-the-graph.md)**, `kb graph`, all 11 formats and the C4 diagram
-- **[docs/asking-the-graph.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/asking-the-graph.md)**, `kb query`, `kb impact`, `kb owners`
-- **[docs/serving-over-mcp.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serving-over-mcp.md)**, serve the graph over MCP + wire your editor
-- **[docs/keeping-it-fresh.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/keeping-it-fresh.md)**, bootstrap, scheduling, and re-indexing on commit
-- **[docs/explained.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/explained.md)**, what changes for you, and why it is built this way
-- **[docs/benchmarks.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, where the token/cost/correctness impact comes from, and how to measure it yourself
-- **[docs/internals.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, architecture and internals
-- **[docs/releasing.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
-- **[docs/style-guide.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/style-guide.md)**, the documentation style guide (voice, structure, formatting, terms)
-- **[docs/brand.md](https://github.com/sayak-sarkar/contextlake/blob/main/docs/brand.md)**, palette, mascot, and asset usage
-- **[CHANGELOG.md](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[ROADMAP.md](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[CONTRIBUTING.md](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**
+- **[Quickstart](https://github.com/sayak-sarkar/contextlake/blob/main/QUICKSTART.md)**, install → bootstrap → wire your editor
+- **[Installing and upgrading](https://github.com/sayak-sarkar/contextlake/blob/main/docs/installing.md)**, every install channel, upgrading, and uninstalling
+- **[Troubleshooting](https://github.com/sayak-sarkar/contextlake/blob/main/docs/troubleshooting.md)**, it broke, now what
+- **[Using the dashboard](https://github.com/sayak-sarkar/contextlake/blob/main/docs/using-the-dashboard.md)**, a guided tour with screenshots
+- **[Command reference](https://github.com/sayak-sarkar/contextlake/blob/main/docs/cli-reference.md)**, every command and flag, plus shell completion
+- **[Console output](https://github.com/sayak-sarkar/contextlake/blob/main/docs/console-output.md)**, decoding a run: glyphs, exit codes, JSON logs, metrics
+- **[Configuration](https://github.com/sayak-sarkar/contextlake/blob/main/docs/configuration.md)**, where settings live and which one wins
+- **[Mirroring repositories](https://github.com/sayak-sarkar/contextlake/blob/main/docs/mirroring-repositories.md)**, the mirror commands and branch safety
+- **[Scheduling runs](https://github.com/sayak-sarkar/contextlake/blob/main/docs/scheduling.md)**, `contextlake schedule`, a self-installed background job on systemd, cron, launchd, Task Scheduler, Kubernetes, AWS or Azure
+- **[The knowledge layer](https://github.com/sayak-sarkar/contextlake/blob/main/docs/knowledge-layer.md)**, the map over the four build stages below
+- **[Indexing the code graph](https://github.com/sayak-sarkar/contextlake/blob/main/docs/indexing-the-code-graph.md)**, `kb index`, and what the graph captures
+- **[Connecting and enriching](https://github.com/sayak-sarkar/contextlake/blob/main/docs/connecting-and-enriching.md)**, `kb connect` / `kb ingest` / `kb enrich`, the ten source types
+- **[Searching semantically](https://github.com/sayak-sarkar/contextlake/blob/main/docs/searching-semantically.md)**, `kb embed` / `kb eval`, vectors and retrieval quality
+- **[Generating the wiki](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-the-wiki.md)**, `kb wiki`, the review council, per-subsystem pages
+- **[Generating documentation](https://github.com/sayak-sarkar/contextlake/blob/main/docs/generating-documentation.md)**, `kb docs`, an API reference with real call sites, no model
+- **[Model providers](https://github.com/sayak-sarkar/contextlake/blob/main/docs/model-providers.md)**, choosing an embeddings and wiki backend
+- **[Visualizing the graph](https://github.com/sayak-sarkar/contextlake/blob/main/docs/visualizing-the-graph.md)**, `kb graph`, all 11 formats and the C4 diagram
+- **[Asking the graph](https://github.com/sayak-sarkar/contextlake/blob/main/docs/asking-the-graph.md)**, `kb query`, `kb impact`, `kb owners`
+- **[Serving over MCP](https://github.com/sayak-sarkar/contextlake/blob/main/docs/serving-over-mcp.md)**, serve the graph over MCP + wire your editor
+- **[Keeping it fresh](https://github.com/sayak-sarkar/contextlake/blob/main/docs/keeping-it-fresh.md)**, bootstrap, scheduling, and re-indexing on commit
+- **[contextlake, explained](https://github.com/sayak-sarkar/contextlake/blob/main/docs/explained.md)**, what changes for you, and why it is built this way
+- **[Benchmarks](https://github.com/sayak-sarkar/contextlake/blob/main/docs/benchmarks.md)**, where the token/cost/correctness impact comes from, and how to measure it yourself
+- **[Architecture and internals](https://github.com/sayak-sarkar/contextlake/blob/main/docs/internals.md)**, the three tiers, the store layout and the invariants
+- **[Releasing](https://github.com/sayak-sarkar/contextlake/blob/main/docs/releasing.md)**, maintainer runbook: versioning, tagging, publishing
+- **[Writing style](https://github.com/sayak-sarkar/contextlake/blob/main/docs/style-guide.md)**, the documentation style guide (voice, structure, formatting, terms)
+- **[Brand overview](https://github.com/sayak-sarkar/contextlake/blob/main/docs/brand.md)**, palette, mascot, and asset usage
+- **[Changelog](https://github.com/sayak-sarkar/contextlake/blob/main/CHANGELOG.md)** · **[Roadmap](https://github.com/sayak-sarkar/contextlake/blob/main/ROADMAP.md)** · **[Contributing](https://github.com/sayak-sarkar/contextlake/blob/main/CONTRIBUTING.md)** · **[Branding](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)**
 
 ## License
 

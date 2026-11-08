@@ -68,7 +68,7 @@ def sync_assets():
 
 # out, src, nav title, hero title, layer eyebrow, subtitle, pebble accent, next-steps
 PAGES = [
-    ("docs.html", "README.md", "Overview", "contextlake",
+    ("docs.html", "docs/overview.md", "Overview", "contextlake",
      "Understand it", "A local context layer for your AI tools: mirror your repos, "
      "index them into a knowledge graph, and serve it over MCP.",
      "pebble-doc.png",

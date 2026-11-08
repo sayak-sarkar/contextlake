@@ -1,4 +1,6 @@
-# Install and upgrade
+# Installing and upgrading
+
+For anyone who installs, upgrades or removes contextlake.
 
 Every way to get contextlake onto a machine, what each channel is good for, and how to
 upgrade or remove it later. This is the single source for install commands: other pages
@@ -29,7 +31,8 @@ environment you already manage.
 
 ## Prerequisites
 
-- **Python 3.10 or newer** for the knowledge layer. The `[kb]` extra depends on the `mcp`
+- **Python 3.10 or newer** for the knowledge layer. An **extra** is an optional add-on: a group of
+  packages you install with contextlake, such as `[kb]`. The `[kb]` extra depends on the `mcp`
   SDK, which requires 3.10, so that is the floor for anything beyond mirroring
   (`pyproject.toml`, the `kb` extra). The whole tool declares `requires-python = ">=3.10"`
   and runs there happily.
@@ -63,7 +66,7 @@ chmod +x contextlake-linux-x86_64
 `pipx` is the recommendation: it gives contextlake its own environment and still puts the
 command on your PATH, which is what you want for a tool rather than a library.
 
-`[kb-full]` is the batteries-included bundle. A plain `pip install contextlake` gives you the
+`[kb-full]` is the full bundle. A plain `pip install contextlake` gives you the
 mirror only, and it pulls exactly one dependency (`argcomplete`, for shell completion), so it
 stays viable on a locked-down machine.
 
@@ -151,8 +154,8 @@ after the container exits. Drop the `-v` and the run is ephemeral.
 
 That bare `kb index` indexes the mount as one repository, which is right when you mount a
 repository. Mount a directory that *holds* repositories and it is refused, telling you to run
-`kb index --workspace .` instead -- `.` being the mount, since that is the container's working
-directory. See [Which command for which
+`kb index --workspace .` instead (`.` being the mount, since that is the container's working
+directory). See [Which command for which
 directory](indexing-the-code-graph.md#which-command-for-which-directory).
 
 The container runs as uid 1000, and a bind mount keeps the host's ownership, so if your host
@@ -341,7 +344,7 @@ parse. No repository's HEAD moved, so nothing about the repositories themselves 
 the repos that are out of date. See `src/contextlake/kb/cmds/doctor.py`, the "shards up to date
 with the current parser" check.
 
-Re-index those with a plain index run -- whichever of the two forms you built the store with:
+Re-index those with a plain index run, using whichever of the two forms you built the store with:
 
 ```bash
 contextlake kb index                     # one repository
@@ -357,28 +360,72 @@ insist on it.
 `contextlake kb index --force` still exists and still rebuilds everything unconditionally.
 Use it when you want a full rebuild, not because an upgrade requires one.
 
-### Parser version `4` rebuilds every existing store
+### Versioning and compatibility
 
-`PARSER_VERSION` is now `4`, raised in 7.0.0. So **every store built before that release reports
-stale**, both under `doctor` and in `kb lint`'s advisory line. The next `contextlake kb index`
-rebuilds all of it.
+contextlake follows [Semantic Versioning](https://semver.org/). From 8.0.0, no breaking change
+lands without a major version bump. Breaks before 8.0.0 are named in the
+[changelog](../CHANGELOG.md), with what to change.
+
+Four surfaces are covered. A change is **breaking** when it would stop something you wrote from
+working:
+
+- **CLI verbs and flags.** Removing or renaming a verb, removing a flag, or changing what a flag
+  means. Adding a verb or a flag is not breaking. Tightening a flag's validation is not breaking
+  either: rejecting `--max-symbols 0`, which silently meant "the default", fixes a value that
+  never did what it said.
+- **Store layout.** Anything that makes an existing store unreadable to the version that wrote it,
+  or that needs a manual migration. Re-indexing is not a migration.
+- **MCP tool contracts.** Removing a tool, removing a field a result carried, or changing what a
+  field means. Adding a field or a tool is not breaking.
+- **Config keys.** Removing a key, or changing a default in a way that changes what a run does.
+
+`PARSER_VERSION` is not on that list. Bumping it stops nothing: your store stays readable, every
+command keeps running, and nothing you wrote needs editing.
+
+A bump means that repositories indexed by an older parser carry less than the current parser would
+extract. So `kb index` rebuilds them instead of reporting them unchanged. `doctor` reports that as
+an advisory, not a fault, because a parser bump would otherwise turn every upgrade into a red check
+for something that works.
+
+### Parser version `14` rebuilds every store built with parser 13 or older
+
+`PARSER_VERSION` is now `14` (`src/contextlake/kb/parse.py`). It moved from `12` to `14` in the
+10.0.0 release line: `13` in 10.0.0rc1 and `14` in 10.0.0rc5. So **every store built with 9.8.3 or
+earlier, or with 10.0.0rc1 to rc4, reports stale**, both under `doctor` and in `kb lint`'s advisory line. The next
+`contextlake kb index` rebuilds all of it. A store older than that also missed the earlier bumps, and
+the same run catches it up on all of them. The [changelog](../CHANGELOG.md) names each one.
 
 Nothing is broken, and no flag is needed. It is one index run that costs what your first one did,
 once, instead of the near-instant no-op an unchanged workspace usually gets.
 
 Budget for that before you run it inside a hook or a CI job on a large mirror.
 
-The bump earns that. Version `4` is the largest output change this stamp has ever covered
-(`src/contextlake/kb/parse.py`, the comment above `PARSER_VERSION`):
+The two latest bumps change what the parser produces:
 
-- node ids became file- and line-independent, so **every id changed**, and a header and its `.cpp`
-  finally describe one symbol rather than two;
-- config keys, SQL and XML gained file nodes and `contains` edges;
-- five symbol kinds are emitted that never existed before: data members, macros, typedefs, enum
-  constants and file-scope variables;
-- `calls` edges are stored per call site rather than per caller/callee pair;
-- C++ internal linkage is honoured in both identity and resolution, so two files' `static` or
-  anonymous-namespace symbols stop merging into one.
+- **`13` changes ids.** File ids, and the ids of names inside a file (tables, config keys, HCL
+  resources, XSD and XSL items, ADRs, entry points, routes), no longer fold case and punctuation.
+  Each id keeps the readable form and adds 8 hex of a hash over the exact repo id and path. So
+  `a-b.py` and `a_b.py` stop sharing a node. Package ids fold by each ecosystem's own rule.
+- **`14` separates symbols that shared an id.** Each of these was one node and now has its own:
+  - two Go methods of one name on different receivers;
+  - two Rust functions of one name in different `impl` or `mod` blocks;
+  - two PHP functions of one name in different namespaces.
+- **`14` also changes what is read.**
+  - A relative import (`./utils`, `.models`) is now a module node of its own repository.
+  - Files in Latin-1, Windows-1252, UTF-16 and UTF-32 are converted to UTF-8 before parsing, so their
+    symbols are no longer cut or missing.
+  - A call at the top of a Vue or Svelte `<script>` now gets an edge.
+
+Ids change, so after the index run:
+
+1. Run `contextlake kb embed` again if you use semantic search.
+2. Run `kb connect` and `kb enrich` again if you use them. Links they stored to a changed symbol
+   point at the old id until then, and `kb lint` reports them as dangling edges.
+3. Expect `kb wiki` to regenerate the wiki pages for those repositories. On a hosted model, that
+   costs model time.
+
+An id you saved outside the store stops resolving: an MCP client that kept node ids, an eval golden
+set with `match: "id"`, a dashboard `#/symbol/<id>` link, or a GraphML or Cypher export.
 
 The catch: all of it lives in the parser, so it reaches an already-built store only when the
 shards are rebuilt.
