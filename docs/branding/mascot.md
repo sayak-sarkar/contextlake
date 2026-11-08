@@ -58,7 +58,9 @@ illustration and the product UI, never inside the carried pebble.
 
 Calm-warm (default), quietly proud / presenting (at a CTA), curious-focused (looking toward
 content), friendly-delight (sparing, for success). Out of canon: anxious, sweating,
-surprised, angry, sad, sleepy, winking, tongue-out, any overacting.
+surprised, angry, sad, sleepy, winking, tongue-out, any overacting. One exception: the docs
+header picture (`docs/branding/pebble-doc.png`) has a happy open smile and looks at the reader
+(owner decision, 2026-11-09).
 
 ## Poses
 

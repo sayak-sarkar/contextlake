@@ -50,7 +50,7 @@ cradling a glowing translucent context-pebble in both forepaws, offering it forw
 anti-hallucination promise made friendly.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter holding a glowing teal context-pebble in both forepaws and looking down at it." width="240">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter with a happy smile, holding a glowing teal context-pebble in both forepaws." width="240">
 </p>
 
 ## Color

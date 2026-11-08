@@ -148,7 +148,8 @@ BRANDING.md section 5.7 allows painterly Pebble pictures on docs pages. These ru
   and a natural river-otter build as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section
   5.10 to generate it. Generate the background with no text. Never ship AI-drawn lettering.
 - **Gaze.** Pebble looks at the content, the pebble or the passage the picture sits beside, never off the
-  page and never straight at the reader (BRANDING.md section 5.9).
+  page and never straight at the reader (BRANDING.md section 5.9). The docs header picture is the one
+  exception: it looks at the reader.
 - **Count.** Several per page are fine if each one explains something. Show one Pebble per screen.
 - **Placement.** Put the picture after the lead summary or between sections, next to the passage it
   explains. Never put it between a heading and that heading's first sentence. Pebble never covers code, a
