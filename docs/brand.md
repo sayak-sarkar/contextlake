@@ -33,6 +33,8 @@ One controlling metaphor: a clear lake seen in depth. **Deep** is the real, comp
 **clear** is the precise answer back. The lake is calm and legible to the bottom, never threatening. No
 oceans, waves, fishing, or drowning, and never "data lake".
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/brand.webp" alt="Pebble surfacing from a calm lake at dawn, the scene behind the lake metaphor described in this section." width="1200" height="800" loading="lazy">
+
 ## Taglines
 
 - **Master:** "Deep context. Clear answers."

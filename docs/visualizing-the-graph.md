@@ -109,6 +109,8 @@ automatically. That works recursively, to any depth, with a clickable breadcrumb
 "Narrow further..." picker, instead of an arbitrary slice. See
 [Using the dashboard](using-the-dashboard.md).
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/diagrams.webp" alt="Ripples on the lake form simple diagram shapes beside Pebble: one graph, drawn in many formats." width="1200" height="800" loading="lazy">
+
 ## Output formats
 
 Output is chosen with `--format`:

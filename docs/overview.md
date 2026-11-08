@@ -9,6 +9,8 @@ tools use to call external tools). Your agent then answers from real source inst
 The mirror and the knowledge layer run on your machine. A hosted model or a hosted connector is
 opt-in.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/overview.webp" alt="Pebble surfacing at dawn on a calm lake, holding the glowing context-pebble, to introduce what contextlake does." width="1200" height="800" loading="lazy">
+
 ## Start here
 
 1. [Installing and upgrading](installing.md): pick a channel, run one command. It also holds the

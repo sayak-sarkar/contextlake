@@ -40,6 +40,8 @@ fleet path below.
 
 The steps below mirror a fleet of repos, index them, and wire your editor.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/quickstart-stages.webp" alt="Pebble in the shallows beside three pebbles in a row, dim to bright: the three quickstart stages in order." width="1200" height="800" loading="lazy">
+
 ## 1. Prerequisites
 
 - **Python 3.10+**, one floor for the whole tool, mirror and knowledge layer alike
@@ -196,6 +198,8 @@ Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `-
 - already have the repos cloned? add `--no-sync`
 - no model configured yet? drop `--llm` and add `--no-embed` (graph + search still build)
 
+> **Pebble's tip:** Add `--dry-run` to `contextlake bootstrap` first. It lists the stages the run would perform and runs none.
+
 ## 5. Wire your editor
 
 `bootstrap` already wrote `.mcp.json`, `AGENTS.md`, `CLAUDE.md`, `.windsurfrules`,
@@ -233,6 +237,8 @@ schedule. You have three options:
 
 For the full details, see the [Command reference](docs/cli-reference.md) and
 [Configuration](docs/configuration.md).
+
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/quickstart-done.webp" alt="Pebble surfacing with a warm smile, presenting the glowing context-pebble: the setup is done." width="1200" height="800" loading="lazy">
 
 ## Next steps
 

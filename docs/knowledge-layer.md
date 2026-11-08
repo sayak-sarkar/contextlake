@@ -10,6 +10,8 @@ data lives in the package (your sites, keys, and rules go in a private config fi
 
 This page orients you; each stage below has its own focused page.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/knowledge-layer.webp" alt="Teal threads of light link the stones on a shallow lake bed while Pebble watches: the knowledge layer links the stored repositories." width="1200" height="800" loading="lazy">
+
 ```mermaid
 flowchart LR
   IDX["kb index"] --> CON["kb connect"] --> EMB["kb embed"] --> WIK["kb wiki"] --> SRV(["kb serve"])

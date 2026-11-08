@@ -167,6 +167,8 @@ group a repo came from, so `status`, `verify`, and the branch-switch pass read e
 Only a repo whose origin positively names a different group drops out. A clone with no origin, or one
 whose config cannot be read, is still reported as before, so a stray checkout never goes quiet.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/mirroring.webp" alt="Pebble on a sunlit lake floor among many smooth stones, a snorkel pushed up: fetching many repositories at once." width="1200" height="800" loading="lazy">
+
 ### `mirror fetch`: fetch every project you can see
 
 Retrieves all repositories from the configured group / org / workspace / owner and caches them
@@ -383,6 +385,8 @@ This command executes:
 4. `branches` - Switch to active branches
 5. `verify` - Verify structure
 6. `audit` - Report repo health & age (skip with `--no-audit`)
+
+> **Pebble's tip:** Run `contextlake mirror sync --dry-run` before your first full sync. It shows what would happen and changes nothing.
 
 ### `mirror audit`: repo health & age report
 

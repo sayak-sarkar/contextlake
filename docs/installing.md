@@ -77,6 +77,30 @@ declares a single console script and ships no top-level launcher, so it is not t
 
 ### The extras, and which one you want
 
+Start from what you want to do, and follow the arrow to the extra:
+
+```mermaid
+flowchart LR
+  G(["what do you want to do?"]) --> M["mirror repositories only"]
+  G --> CG["build the code graph"]
+  G --> SS["search by meaning"]
+  G --> OC["read text in images<br/>and screenshots"]
+  G --> VD["read a video"]
+  M --> N["no extra: the plain install"]
+  CG --> KB["install [kb]"]
+  SS --> KF["install [kb-full]"]
+  OC --> KO["install [kb-ocr]"]
+  VD --> KV["install [kb-video]"]
+  KV -.->|"add the spoken track"| KT["install [kb-transcribe]"]
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is an install choice</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+</div>
+
+A scanned PDF has no text layer, and OCR does not cover it. See [Document sources](document-sources.md).
+
 | Extra | Adds | When you need it |
 | --- | --- | --- |
 | `[kb]` | The knowledge layer: parse to graph to wiki to MCP server | Anything beyond mirroring |

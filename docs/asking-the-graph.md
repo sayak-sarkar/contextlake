@@ -125,6 +125,8 @@ You should get up to three lines shaped like
 `No matches for 'ForecastService'`, check the index is populated with `contextlake doctor` before
 suspecting the query.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/impact.webp" alt="Ripples from one dropped pebble spread across the lake and light up pebbles on the far bank, the way a change reaches other code." width="1200" height="800" loading="lazy">
+
 ## See what breaks: `kb impact`
 
 ```bash

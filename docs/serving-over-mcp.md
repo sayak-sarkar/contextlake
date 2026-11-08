@@ -30,6 +30,8 @@ flowchart LR
 - `contextlake` on the `PATH` of the editor, because every config below starts the server with `contextlake kb serve`.
 - Optional: embeddings from `contextlake kb embed`, which add the `semantic_search` and `hybrid_search` tools.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/serve.webp" alt="Pebble on a dock handing the glowing context-pebble to a blank floating window, the way the MCP server hands context to an editor." width="1200" height="800" loading="lazy">
+
 ## The quick way: let contextlake wire your editors
 
 From your workspace root:

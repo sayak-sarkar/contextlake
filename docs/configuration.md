@@ -38,6 +38,8 @@ Configuration is loaded in this precedence order:
 3. **Default values**: built-in defaults (lowest priority)
 4. **CLI arguments**: override all other settings
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/configuration.webp" alt="Pebble holding a stack of pebbles, to picture the config sources that are layered on top of each other." width="1200" height="800" loading="lazy">
+
 Run `contextlake init --local` inside a project to create that project's local config
 (`.contextlake.ini` and `.contextlake.kb.toml`) instead
 of the global one, see [Directory-scoped config](#directory-scoped-config) below.
