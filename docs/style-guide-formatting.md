@@ -145,7 +145,7 @@ Never default to "he" or "she". Use diverse, realistic names in examples.
 BRANDING.md section 5.7 allows painterly Pebble pictures on docs pages. These rules apply to each one.
 
 - **Style.** Painterly only, as in BRANDING.md section 5.8: no hard outlines, no pure black, blue-grey fur
-  and a slim river-otter build as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section
+  and a natural river-otter build as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section
   5.10 to generate it. Generate the background with no text. Never ship AI-drawn lettering.
 - **Gaze.** Pebble looks at the content, the pebble or the passage the picture sits beside, never off the
   page and never straight at the reader (BRANDING.md section 5.9).

@@ -16,9 +16,10 @@ with real context, not a guess.
 ## Silhouette and proportions
 
 - Rounded, buoyant, river-smoothed. Soft pebble-like mass, no sharp anatomy.
-- Slim, sleek river-otter build: shoulders no wider than the head, a visible neck, a long lean
-  torso, a narrow chest. "Rounded" means soft edges and smooth fur, never a round or heavy body.
-  Pebble is never chubby, plump or pear-shaped.
+- A healthy, natural river-otter build, between thin and plump: shoulders about as wide as the
+  head, a soft, gently filled chest and belly, a short neck. "Rounded" means soft edges and smooth
+  fur, never a round or heavy body. Pebble is never chubby, plump or pear-shaped, and never skinny,
+  stick-thin or long-necked.
 - Head-to-body ratio 1:1.6 (deliberately juvenile and cute).
 - Broad rounded head; short muzzle (35% of head width or less); small rounded ears set wide and low.
 - Large round dark eyes about 40% down the face, one soft upper-left catch-light only.
@@ -96,8 +97,9 @@ Grotesk. Never ship a single AI generation with baked-in lettering. Vary only [P
 Paste the three quoted paragraphs below as one prompt.
 
 > Mascot illustration of **Pebble**, a cute innocent-faced **dark blue-grey river otter**
-> with a slim, sleek river-smoothed body (shoulders no wider than the head, a visible neck), a
-> broad rounded head (head-to-body ratio 1:1.6), short muzzle,
+> with a healthy, natural river-smoothed body (shoulders about as wide as the head, a gently
+> filled chest and belly, a short neck), a broad rounded head (head-to-body ratio 1:1.6), short
+> muzzle,
 > large soft dark eyes with a single upper-left catch-light, small rounded ears. Fur in deep
 > blue-grey teal tones (`#23424B` back, `#2F5A63` midtone, `#6E8E92` mist-lifted belly),
 > deepwater `#0E2A33` nose, no pure black.
@@ -122,7 +124,7 @@ faceted crystal, cut gem, gold nugget, network graph inside the stone, glowing n
 water droplets on face, sweat drops, tears, anxious expression, shocked face, angry, sleepy,
 hard black outlines, pure black, neon, text, watermark, two otters, realistic otter anatomy,
 warm brown fur (fur is blue-grey), off-page stare, chubby, plump, fat, round belly,
-pear-shaped body, wide hips.
+pear-shaped body, wide hips, skinny, stick-thin body, long narrow neck, weasel shape.
 
 **Slot examples:** Hero = [POSE] surfacing at the waterline presenting the pebble forward,
 [CONTEXT] soft sunrise mist on calm reflective water. Loading = [POSE] diving
