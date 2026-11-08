@@ -377,7 +377,8 @@ GH_BTN = _btn("https://github.com/sayak-sarkar/contextlake", GH_MARK, "contextla
 PYPI_BTN = _btn("https://pypi.org/project/contextlake/", PYPI_MARK, "contextlake on PyPI")
 # a labeled GitHub button for the header, matching the landing (PyPI stays in the footer)
 GH_LABELED = ('<a class="hbtn" href="https://github.com/sayak-sarkar/contextlake" '
-              'rel="noopener" target="_blank">' + GH_MARK + "GitHub</a>")
+              'rel="noopener" target="_blank" aria-label="GitHub">' + GH_MARK
+              + '<span class="hbtn-lbl">GitHub</span></a>')
 # footer social links: labeled (icon + text), mirroring the landing footer for a uniform look
 FOOT_GH = ('<a href="https://github.com/sayak-sarkar/contextlake" rel="noopener" target="_blank">'
            + GH_MARK + "GitHub</a>")
@@ -660,7 +661,10 @@ def toc_inline(toc_html: str) -> str:
 # Site-wide theme: a no-flash init (runs in <head>) + a toggle button + its wiring. The same
 # three pieces live in site/index.html so the light/dark choice persists across the whole site
 # (shared localStorage key "cl-theme"). No JS -> the page follows the OS via prefers-color-scheme.
-THEME_INIT = ('<script>(function(){try{var t=localStorage.getItem("cl-theme");'
+# It also marks the page "js", so the phone-width nav hides behind its toggle only when the
+# toggle's script can open it again (docs.css, max-width 860px).
+THEME_INIT = ('<script>(function(){document.documentElement.classList.add("js");'
+              'try{var t=localStorage.getItem("cl-theme");'
               'if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>')
 THEME_TOGGLE = (
     '<button class="icon-btn theme-toggle" id="theme-toggle" type="button" hidden '

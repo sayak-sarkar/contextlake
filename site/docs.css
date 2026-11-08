@@ -73,6 +73,9 @@ header:not(.doc-hero){position:sticky;top:0;z-index:40;background:color-mix(in s
   border:1px solid var(--line-2);border-radius:9px;color:var(--ink);background:var(--surface);text-decoration:none;
   transition:border-color .15s,background .15s,transform .15s}
 .hbtn:hover{border-color:var(--lake);background:var(--iconbtn-hover);transform:translateY(-1px)}
+/* Below 480px the header row was 6px wider than the screen: the button keeps its icon and its
+   aria-label, and drops the visible word. */
+@media (max-width:480px){ .hbtn{width:34px;padding:0;justify-content:center} .hbtn .hbtn-lbl{display:none} }
 /* theme toggle: shows the icon for the theme you'll switch TO */
 .theme-toggle{cursor:pointer}
 .theme-toggle .sun{display:none}
@@ -311,6 +314,9 @@ footer .tagline{font-family:var(--ff-d);color:var(--mist);display:inline-flex;al
   .side.open .side-toggle{border-color:var(--lake);border-bottom-left-radius:0;border-bottom-right-radius:0}
   .side-body{display:none;border:1px solid var(--line-2);border-top:none;border-radius:0 0 11px 11px;padding:6px 8px 12px}
   .side.open .side-body{display:block}
+  /* With no JavaScript the toggle cannot open the nav, so show the nav and drop the toggle. */
+  html:not(.js) .side-toggle{display:none}
+  html:not(.js) .side-body{display:block;border:none;padding:0}
   .side .side-group:first-of-type .side-title{margin-top:10px}
   .side .side-title{cursor:pointer}
   .side .side-title::after{display:block}
