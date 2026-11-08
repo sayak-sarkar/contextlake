@@ -61,6 +61,10 @@ never bury it inline in a paragraph.
 | **Important** | a prerequisite or constraint the reader must not miss |
 | **Warning** | a destructive or irreversible action (a sync over a dirty tree, a forced branch switch) |
 
+Use only these four. Pebble's tip (see [Voice and tone](style-guide-voice.md)) is a separate box, not a
+fifth callout. Never put a numbered procedure inside a callout or a tip. Put the steps in the page body
+and link to them from the callout.
+
 Pick the weakest level that fits, and don't cry wolf. Reserve **Warning** for the destructive,
 matching the CLI's own safety-flag posture.
 
@@ -132,8 +136,30 @@ Never default to "he" or "she". Use diverse, realistic names in examples.
   transparent), rasterized with cairosvg where a PNG is needed. Don't use an image model for a flat
   diagram; it garbles labels. Painterly Pebble scene art is a separate, decorative register.
 - **Lead with real CLI screenshots** where they teach best, a code-grounded diagram where a picture
-  replaces more than a hundred words of prose, and painterly brand art last and sparingly.
+  replaces more than a hundred words of prose, and painterly Pebble art where a picture helps explain
+  something.
 - Give every visual alt text, and a caption on the site where it aids scanning.
+
+### Pebble pictures on docs pages
+
+BRANDING.md section 5.7 allows painterly Pebble pictures on docs pages. These rules apply to each one.
+
+- **Style.** Painterly only, as in BRANDING.md section 5.8: no hard outlines, no pure black, blue-grey fur
+  as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section 5.10 to generate it. Generate the
+  background with no text. Never ship AI-drawn lettering.
+- **Count.** Several per page are fine if each one explains something. Show one Pebble per screen.
+- **Placement.** Put the picture after the lead summary or between sections, next to the passage it
+  explains. Never put it between a heading and that heading's first sentence. Pebble never covers code, a
+  graph or a table, and never sits inside a numbered step or a callout.
+- **Size.** Set `width` and `height` on the image so the page does not jump while it loads. The picture
+  fits inside the prose column and does not push text into a narrow strip. The header mark is 104px wide
+  on desktop and 88px on phones. A section banner is at least 320px tall.
+- **Alt text.** A picture that explains something gets alt text that names what it shows and why it is
+  there, in one plain sentence. A purely decorative picture gets `alt=""` and `aria-hidden="true"`. Pebble adds no text of its
+  own to the picture: any words belong in the page text, so the page works with the picture removed.
+- **Expressions.** Calm and warm by default. Use the friendly-delight pose only on a success or completion
+  page. Never anxious, sad, silly, sleepy or winking (BRANDING.md sections 5.5 and 5.9).
+- **Voice.** The picture has no speech bubble. Pebble speaks only in a Pebble's tip box.
 
 ## See also
 

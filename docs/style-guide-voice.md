@@ -52,6 +52,32 @@ Warmth lives in direct address, contractions, and the occasional light human tou
 slang, hype, or jokes that don't translate. When in doubt, read the sentence aloud. If it doesn't sound
 like something you'd say to a colleague you respect, rewrite it.
 
+## Tone follows the moment
+
+Match the tone to what the reader is doing.
+
+- **Concept and overview pages.** One warm, plain sentence of personality is fine, in the project's voice.
+- **Success and completion.** A short note of celebration fits.
+- **Warnings, errors, troubleshooting and Verification steps.** Stay serious and exact. Add no joke, and place no Pebble's tip in these sections.
+
+## Pebble's tip
+
+Pebble is the mascot. Pebble speaks in one place only: a "Pebble's tip" box.
+
+- **One box at most per page.** Skip it where there is nothing to tip.
+- **Syntax.** Use a blockquote whose first line starts with **Pebble's tip:** in bold.
+- **Everything else is plain.** The rest of the page stays in the project's voice. Never write "Pebble says" or "Pebble will guide you" in running text, and never give Pebble a line inside a step, a warning or an error message.
+- **The box is not a callout.** It sits beside the four callouts in [Formatting](style-guide-formatting.md), and it never replaces a Warning or an Important note.
+- **The page works without it.** Remove the box and no fact is lost. The tip adds a shortcut or a nudge, not the only copy of an instruction.
+
+Write it like this:
+
+```markdown
+> **Pebble's tip:** Run `contextlake doctor` first. It names what is missing.
+```
+
+Keep the tip to one or two short sentences, in the same plain words as the page.
+
 ## Grounded writing: the anti-hallucination habits
 
 These are contextlake's signature, and they are good technical writing on their own merits.

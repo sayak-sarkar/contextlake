@@ -14,7 +14,9 @@ below, so you can jump straight to what you need instead of reading one long doc
 ## The spirit: grounded, lucid, warm
 
 contextlake's docs sound like a knowledgeable friend who read your code so the model doesn't have to
-guess. Pebble, the otter mascot, is that friend. Three brand words govern every page.
+guess. The docs speak in that voice themselves. Pebble, the otter mascot, speaks only in a
+"Pebble's tip" box, at most one per page (see [Voice and tone](style-guide-voice.md)). Three brand
+words govern every page.
 
 - **Grounded.** Every claim traces to something real: a command, a file, a flag, a line of output. We show
   the receipt. We never overclaim, and we state limitations plainly.

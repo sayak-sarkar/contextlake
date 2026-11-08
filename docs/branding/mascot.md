@@ -70,6 +70,13 @@ The one exception is the 16-32px favicon tier, a simplified silhouette used pure
 shading doesn't survive that much downsampling, see BRANDING.md section 2.3. It is a technical
 simplification of the one character, not a second logo register.
 
+## Pebble in docs text
+
+Pebble speaks only in a "Pebble's tip" box, at most one per page. All other docs text
+stays plain, in the project's voice. The syntax is a blockquote whose first line starts with
+**Pebble's tip:**. The rule and an example are in
+[the voice page](../style-guide-voice.md).
+
 ## Do / don't
 
 - **Do:** keep the pebble glow the single brightest point; cast its teal glow onto Pebble;

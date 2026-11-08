@@ -228,7 +228,7 @@ The system is **dark-first** with a fully paired light theme. Tokens are namespa
 
 ### 3.1 Foundational rule: no pure black, no pure white surface
 
-`#000000` is **forbidden everywhere**, backgrounds, text, borders, shadows, icon strokes, keylines. The darkest tone in the light theme is **deepwater `#0E2A33`**; the moonlit-navy dark theme goes a touch deeper on recessed panels (`#081D30`, §3.4). Shadows are deepwater at low alpha (`rgba(14,42,33,0.X)`), never black. `#FFFFFF` is permitted only as a light-theme **card surface** and as on-fill text over lake; it is never a page background (light canvas is mist-tinted `#F3F8F8`).
+`#000000` is **forbidden everywhere**, backgrounds, text, borders, shadows, icon strokes, keylines. The darkest tone in the light theme is **deepwater `#0E2A33`**; the moonlit-navy dark theme uses a deeper tone on recessed panels (`#081D30`, §3.4). Shadows are deepwater at low alpha (`rgba(14,42,33,0.X)`), never black. `#FFFFFF` is permitted only as a light-theme **card surface** and as on-fill text over lake; it is never a page background (light canvas is mist-tinted `#F4FAFB`).
 
 ### 3.2 Token taxonomy (three tiers: replaces the "six locked" framing)
 
@@ -283,13 +283,13 @@ The **light theme (§3.5) is unchanged** and keeps deepwater as its dark tone. T
 
 | Role | Token | Hex | Verified |
 |---|---|---|---|
-| Canvas bg | `--cl-bg` | `#F3F8F8` | text deepwater **14.02:1** |
+| Canvas bg | `--cl-bg` | `#F4FAFB` | text deepwater **14.25:1** |
 | Surface (card) | `--cl-surface` | `#FFFFFF` | text deepwater **15.03:1** |
 | Surface sunken | `--cl-surface-sunken` | `#EAF4F4` (mist) | text deepwater **13.41:1** |
-| Text | `--cl-text` | `#0E2A33` | 14.02:1 on bg ✓ AAA |
-| Muted text | `--cl-text-muted` | `#566B70` | **5.25:1** bg ✓ (≥4.76 all light surfaces) |
+| Text | `--cl-text` | `#0E2A33` | 14.25:1 on bg ✓ AAA |
+| Muted text | `--cl-text-muted` | `#566B70` | **5.33:1** bg ✓ (≥4.76 all light surfaces) |
 | Subtle text | `--cl-text-subtle` | `#5E777C` | corrected; ≥4.5:1 on bg & surface ✓ |
-| Brand / link | `--cl-brand` | `#0E6675` | **6.17:1** bg / 5.90:1 sunken ✓ (always underlined) |
+| Brand / link | `--cl-brand` | `#137A8B` (lake, as `site/tokens.css` ships it) | **4.76:1** bg / 5.02:1 white surface ✓ (always underlined). On the sunken surface it is 4.48:1, so use `#0E6675` there. |
 | Accent fill | `--cl-accent` | `#137A8B` (lake) | fill only; on-text white **5.02:1** ✓ |
 | Border interactive | `--cl-border` | `#788C90` | corrected; **≥3:1 on bg, surface, and sunken** ✓ |
 | Divider (decorative) | `--cl-line` | `#D2E0E0` | exempt |
@@ -332,7 +332,7 @@ A single-hue teal ring on a teal/current button is ~1:1 and disappears. Locked f
 Gold `#E7B53C` is **decorative and emphatic, never functional text on light, never a link, never the sole carrier of meaning.**
 
 - **Permitted:** the pebble's inner glint; a single hairline keyline accent; an active-tab or "live/fresh" indicator dot; sparkle/glow in illustration; large display numerals **on dark** (`7.92:1` ✓).
-- **Forbidden:** gold body copy on light (gold/mist **1.69:1**, gold/white **1.90:1**, gold on `#F3F8F8` **1.77:1**, all fail); gold links; gold form borders; gold as a status color; more than **one** gold accent per viewport region.
+- **Forbidden:** gold body copy on light (gold/mist **1.69:1**, gold/white **1.90:1**, gold on `#F4FAFB` **1.80:1**, all fail); gold links; gold form borders; gold as a status color; more than **one** gold accent per viewport region.
 - On dark, gold may label icons/large text (≥7.9:1); pair it with deepwater when it becomes a fill.
 
 ### 3.10 Enforcement (CI-checkable)
@@ -353,13 +353,13 @@ Three-typeface system. The split is functional. Never add a fourth family; never
 
 | Role | Typeface | Used for |
 |---|---|---|
-| Display / headings | **Space Grotesk** | Hero display, H1–H4, eyebrows/labels, pull quotes, stat numerals, nav/button labels, the wordmark |
+| Display / headings | **Space Grotesk** | Hero display, H1–H4, pull quotes, stat numerals, nav/button labels, the wordmark |
 | Body / UI | **Inter** | Paragraphs, lists, captions, forms, tooltips, table cells, most chrome |
-| Code / literal | **JetBrains Mono** | CLI commands, file paths, code blocks, MCP payloads, repo/branch names, version tags, key bindings |
+| Code / literal | **JetBrains Mono** | Eyebrows (the small caps label above a heading), CLI commands, file paths, code blocks, MCP payloads, repo/branch names, version tags, key bindings |
 
 **Monospace lock:** **JetBrains Mono** (SIL OFL, self-hostable; tall x-height, slashed zero, disambiguated `1 l I` / `0 O`). Sanctioned alternative only if a build-size budget forces it: **IBM Plex Mono**.
 
-**Display-vs-body rule:** Space Grotesk above 20px and for any caps label; Inter at/below 18px for reading text. The only Inter use above 18px is the 18px lead paragraph. The only Space Grotesk use below 20px is the eyebrow (12–14px) and nav/button labels.
+**Display-vs-body rule:** Space Grotesk above 20px and for any caps label except the eyebrow; Inter at/below 18px for reading text. The only Inter use above 18px is the 18px lead paragraph. The only Space Grotesk use below 20px is nav/button labels. Eyebrows are set in JetBrains Mono, as the homepage and the docs ship them.
 
 ### 4.2 Modular scale (base 16px = 1rem, ratio 1.25)
 
@@ -374,13 +374,13 @@ Three-typeface system. The split is functional. Never add a fourth family; never
 | `--type-body` | Inter | 16 / 1.00 | 400 | 1.60 | 0 |
 | `--type-small` | Inter | 14 / 0.875 | 400 | 1.50 | 0 |
 | `--type-caption` | Inter | 12 / 0.75 | 500 | 1.40 | +0.01em |
-| `--type-eyebrow` | Space Grotesk | 13 / 0.8125 | 600 | 1.20 | +0.08em **(UPPERCASE)** |
+| `--type-eyebrow` | JetBrains Mono | 12 / 0.75 on the homepage, 11 / 0.6875 on docs pages | 500 | 1.20 | +0.06em on the homepage, +0.09em on docs pages **(UPPERCASE)** |
 | `--type-mono` | JetBrains Mono | 14 / 0.875 | 400 | 1.55 | 0 |
 | `--type-mono-block` | JetBrains Mono | 14 / 0.875 | 400 | 1.65 | 0 |
 
 Body emphasis uses Inter 600 (not 700). Stat/numeric displays use Space Grotesk 600 with **tabular figures** (`font-feature-settings: "tnum" 1`).
 
-**Eyebrow casing (reconciled):** the sentence-case voice rule (§1.6) governs *running copy*. The **eyebrow/label is an exempt typographic device**, UPPERCASE at +0.08em is permitted and locked for `--type-eyebrow` only. All-caps is never used for sentences or paragraphs.
+**Eyebrow casing (reconciled):** the sentence-case voice rule (§1.6) governs *running copy*. The **eyebrow/label is an exempt typographic device**, UPPERCASE with positive tracking is permitted and locked for `--type-eyebrow` only. The 11px docs eyebrow sits below the 12px text floor in §4. It is a known exception. All-caps is never used for sentences or paragraphs.
 
 ### 4.3 Weights (ship only these: eight files)
 
@@ -417,7 +417,7 @@ The shipped product fetches **no external runtime assets**, fonts are **self-hos
 - Body line-height ≥ **1.5** (SC 1.4.12); headings may go to 1.05.
 - Measure **60–75 characters**; cap content columns at ~`68ch`.
 - Contrast: normal text ≥ **4.5:1**, large text (≥24px or ≥18.66px bold) ≥ **3:1**. Use the §3 token pairs.
-- **Links:** light `--cl-brand #0E6675` + underline; dark `current #2BB3A3` + underline. Never color-alone, pair with underline (links), an icon, or a label.
+- **Links:** light `--cl-brand #137A8B` + underline; dark `current #2BB3A3` + underline. Never color-alone, pair with underline (links), an icon, or a label.
 - `current`/`lake`/`gold` are **never running body text on light**.
 - Layout survives 200% zoom and 400% reflow without horizontal scroll; all sizes in `rem`. Honor `prefers-reduced-motion` for any text reveal.
 
@@ -453,6 +453,8 @@ is currently off-canon and needs regeneration** to match; see §7.3.
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter cradling a glowing translucent context-pebble in both forepaws, offering it forward." width="240">
 </p>
+
+*The current docs hero image, shown for reference only. It is off-canon (§5.9) and a later release replaces it.*
 
 ### 5.2 Silhouette & proportions (locked)
 
@@ -518,7 +520,8 @@ convention.
 
 Pebble's presence is **inversely proportional to surface information-density.**
 
-- **High-density (graph visualizer, docs, dashboards, code/MCP output):** Pebble **absent or a ≤32px corner/empty-state accent only.** The data is the hero; Pebble never competes with a live graph.
+- **High-density (graph visualizer, dashboards, code/MCP output):** Pebble **absent or a ≤32px corner/empty-state accent only.** The data is the hero; Pebble never competes with a live graph.
+- **Docs pages:** painterly Pebble pictures are allowed wherever they help explain something, several per page if needed (owner decision). "One Pebble per view" still holds for one screen. Pebble never covers code, a graph or a table.
 - **Medium-density (landing sections, feature cards, onboarding):** one Pebble per viewport max, supporting.
 - **Low-density (hero, OG/social, 404/empty, splash):** Pebble may be the painterly hero at full richness.
 
@@ -539,6 +542,8 @@ simplification of it.
 
 **Do:** keep the pebble glow the single brightest point; cast its teal glow onto Pebble; aim gaze at
 content/CTA/pebble; use deepwater `#0E2A33` as the darkest value; keep Pebble outline-free.
+
+**Docs hero asset (open, owner decision):** the current `docs/branding/pebble-doc.png` is a cutout with a dark keyline, a cel-shaded face, gold sparkles and star-like dots inside the pebble, and an open tongue. Each of these breaks §5.8, this section, or `docs/branding/mascot.md`. The docs hero asset is to be a painterly picture generated from the brand set. The replacement picture arrives in a later release, and until then the current file stays off-canon.
 
 **Don't:** ❌ node-graph/star-dots inside the pebble · ❌ amber sphere, faceted gem, or gold-nugget pebble · ❌ water droplets/sweat on the face · ❌ hard black outlines on painterly art; no `#000` anywhere · ❌ off-page or viewer-locked painterly stare · ❌ more than one gold glint; no second eye-sparkle · ❌ anxious/shocked/angry/sleepy/silly expressions · ❌ two-Pebble compositions; no Pebble over a live graph · ❌ AI-generated wordmark.
 
@@ -646,7 +651,7 @@ choice. The 16–64px favicon tier (§2.3) is the only surface that drops the ch
 |---|---|---|---|---|
 | **Landing hero** | Layered scene (§6.2) + motion (§6.3) | WebP/AVIF + PNG fallback, layers separate | painterly lake, dark-first | Gaze → CTA; ≥8% clear margin; static pose is the no-JS/reduced-motion baseline |
 | **Landing sections** | mark or a supporting painterly spot, ≤1 per page | PNG/WebP | mist `#EAF4F4` or deepwater | Never stack two painterly scenes on one page |
-| **Docs** | mark in header; optional single banner ≥320px tall per top-level section | PNG/WebP | mist light, deepwater code blocks | -- |
+| **Docs** | mark in header; painterly Pebble pictures wherever they help explain something, several per page if needed; optional banner ≥320px tall per top-level section | PNG/WebP | mist light, deepwater code blocks | One Pebble per screen (§5.7). Never over code, a graph or a table. The header mark is 104px wide on desktop and 88px on phones. The current docs hero image is off-canon (§5.9). |
 | **Graph / tool UI (in-product nav)** | a small bundled glyph (currently a hand-drawn inline SVG, `kb/dashboard/static/dashboard.html`) -- painterly raster doesn't inline cheaply at nav-icon size | inline SVG or bundled data-URI, zero external fetch | deepwater dark-first | Ships offline: never load remote assets at runtime. Carries the §7.2 second brand signal |
 | **README, GitHub** | hero banner (1280×640 safe), shields badges | PNG/WebP via raw URL; SVG badges | reads on GitHub light **and** dark | Use `<picture>` with light/dark sources; never transparent-on-white only |
 | **README, PyPI** | same banner, **absolute URLs only** | PNG (PyPI strips some SVG; no relative paths) | PyPI light | All `src` absolute `https://`; one banner, no animation |
@@ -671,6 +676,7 @@ choice. The 16–64px favicon tier (§2.3) is the only surface that drops the ch
 | `docs/img/pebble-peek.png`, `docs/img/icon-512.png`, hero/OG art | **Off-canon**: same brown-fur drift as the mark, from an unlocked later ChatGPT session | **Regenerate** to blue-grey; not yet done, blocked on new art generation | PNG/WebP |
 | `docs/branding/mark.svg`, `mark-dark.svg`, `glyph.svg`, `glyph-mark.svg` | retired flat-mark assets (correct blue-grey color, wrong register) | **Kept for history only** -- not referenced by any build, page, or spec; do not revive as the logo (the register decision stands even though the color was right) | n/a |
 | `docs/branding/wordmark.svg` | shipped single-color, weight 700 | keep in sync with §2.4; `<desc>` should not claim a flat otter-head mark is primary | SVG |
+| `docs/branding/pebble-doc.png` | **Off-canon**: keyline, cel-shaded face, sparkles, open tongue (§5.9). Current docs hero image | **Replace** with a painterly picture in a later release | PNG |
 | `docs/branding/mascot.md` | rewritten to Section 5, then corrected back to blue-grey 2026-07-28 | keep in sync with §5 | markdown |
 | `docs/img/icon-16/32/48/64.png` | context-pebble (`site/tools/gen_small_mark.py`): teal disc, deepwater interior marks, one sun glint | **Regenerate** with the tool; never hand-edit | PNG, deepwater-solid bg |
 | `docs/img/icon-180/192/512.png` | painterly mark (`site/tools/gen_icons_final.py`), warm brown | **Regenerate** once blue-grey painterly art exists (see "The mark" row above) | PNG, deepwater-solid bg |
