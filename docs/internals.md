@@ -38,7 +38,7 @@ then the nearest ancestor directory's local file, then an explicit `--config`, t
 Discovery walks up from the current directory to the filesystem root, the way git finds `.git`.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="960">
 </p>
 
 One carve-out matters for safety.

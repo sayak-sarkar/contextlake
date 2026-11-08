@@ -12,7 +12,7 @@ Everything beyond the mirror is optional. This quickstart turns on four things:
 - **Connectors.** They are off until `kb.toml` has a `[[sources]]` entry. The example in step 3 adds one.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then enrich, then wiki, then steer." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline in ten stages: sync, audit, index, connect, embed, enrich, wiki, diagrams, docs, then steer." width="828">
 </p>
 
 ## Try it on one repo, no setup

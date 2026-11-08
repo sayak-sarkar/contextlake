@@ -37,7 +37,7 @@ editing current, and the lock is what stops the two of them from writing at once
 ## One command for the whole pipeline
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then enrich, then wiki, then steer." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline in ten stages: sync, audit, index, connect, embed, enrich, wiki, diagrams, docs, then steer." width="828">
 </p>
 
 ```bash

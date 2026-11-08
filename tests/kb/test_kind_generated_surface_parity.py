@@ -52,7 +52,7 @@ _SWATCH = re.compile(
     r'[^>]*/>\n<text [^>]*font-family="\'JetBrains Mono\',ui-monospace,monospace">'
     r"(\w+)</text>"
 )
-_BAND = re.compile(r'<text x="\d+" y="\d+" font-size="11" font-weight="600"[^>]*>([A-Z -]+)</text>')
+_BAND = re.compile(r'<text x="\d+" y="\d+" font-size="12" font-weight="600"[^>]*>([A-Z -]+)</text>')
 
 
 def _gen_diagrams():
