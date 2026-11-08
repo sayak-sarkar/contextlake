@@ -21,6 +21,8 @@ tools use to call external tools). Your agent then answers from real source inst
 The mirror and the knowledge layer run on your machine. A hosted model or a hosted connector is
 opt-in.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/overview.webp" alt="Pebble surfacing at dawn on a calm lake, holding the glowing context-pebble, to introduce what contextlake does." width="1200" height="800" loading="lazy">
+
 ## Start here
 
 1. [Installing and upgrading](installing.md): pick a channel, run one command. It also holds the
@@ -666,6 +668,30 @@ declares a single console script and ships no top-level launcher, so it is not t
 
 ### The extras, and which one you want
 
+Start from what you want to do, and follow the arrow to the extra:
+
+```mermaid
+flowchart LR
+  G(["what do you want to do?"]) --> M["mirror repositories only"]
+  G --> CG["build the code graph"]
+  G --> SS["search by meaning"]
+  G --> OC["read text in images<br/>and screenshots"]
+  G --> VD["read a video"]
+  M --> N(["no extra: the plain install"])
+  CG --> KB(["install [kb]"])
+  SS --> KF(["install [kb-full]"])
+  OC --> KO(["install [kb-ocr]"])
+  VD --> KV(["install [kb-video]"])
+  KV -.->|"add the spoken track"| KT(["install [kb-transcribe]"])
+```
+
+<div class="dg-key">
+  <i><b class="dg-sh-step"></b>a rectangle is a goal</i>
+  <i><b class="dg-sh-act"></b>a rounded box is the question, or the extra to install</i>
+</div>
+
+A scanned PDF has no text layer, and OCR does not cover it. See [Document sources](document-sources.md).
+
 | Extra | Adds | When you need it |
 | --- | --- | --- |
 | `[kb]` | The knowledge layer: parse to graph to wiki to MCP server | Anything beyond mirroring |
@@ -1147,6 +1173,8 @@ fleet path below.
 
 The steps below mirror a fleet of repos, index them, and wire your editor.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/quickstart-stages.webp" alt="Pebble in the shallows beside three pebbles in a row, dim to bright: the three quickstart stages in order." width="1200" height="800" loading="lazy">
+
 ## 1. Prerequisites
 
 - **Python 3.10+**, one floor for the whole tool, mirror and knowledge layer alike
@@ -1303,6 +1331,8 @@ Prefer `--llm ollama` or `--llm openai` for higher-quality prose; without any `-
 - already have the repos cloned? add `--no-sync`
 - no model configured yet? drop `--llm` and add `--no-embed` (graph + search still build)
 
+> **Pebble's tip:** Add `--dry-run` to `contextlake bootstrap` first. It lists the stages the run would perform and runs none.
+
 ## 5. Wire your editor
 
 `bootstrap` already wrote `.mcp.json`, `AGENTS.md`, `CLAUDE.md`, `.windsurfrules`,
@@ -1340,6 +1370,8 @@ schedule. You have three options:
 
 For the full details, see the [Command reference](docs/cli-reference.md) and
 [Configuration](docs/configuration.md).
+
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/quickstart-done.webp" alt="Pebble surfacing with a warm smile, presenting the glowing context-pebble: the setup is done." width="1200" height="800" loading="lazy">
 
 ## Next steps
 
@@ -1525,6 +1557,8 @@ group a repo came from, so `status`, `verify`, and the branch-switch pass read e
 
 Only a repo whose origin positively names a different group drops out. A clone with no origin, or one
 whose config cannot be read, is still reported as before, so a stray checkout never goes quiet.
+
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/mirroring.webp" alt="Pebble on a sunlit lake floor among many smooth stones, a snorkel pushed up: fetching many repositories at once." width="1200" height="800" loading="lazy">
 
 ### `mirror fetch`: fetch every project you can see
 
@@ -1742,6 +1776,8 @@ This command executes:
 4. `branches` - Switch to active branches
 5. `verify` - Verify structure
 6. `audit` - Report repo health & age (skip with `--no-audit`)
+
+> **Pebble's tip:** Run `contextlake mirror sync --dry-run` before your first full sync. It shows what would happen and changes nothing.
 
 ### `mirror audit`: repo health & age report
 
@@ -1999,6 +2035,8 @@ Configuration is loaded in this precedence order:
 2. **Global config**: `~/.contextlake.ini` in the home directory
 3. **Default values**: built-in defaults (lowest priority)
 4. **CLI arguments**: override all other settings
+
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/configuration.webp" alt="Pebble holding a stack of pebbles, to picture the config sources that are layered on top of each other." width="1200" height="800" loading="lazy">
 
 Run `contextlake init --local` inside a project to create that project's local config
 (`.contextlake.ini` and `.contextlake.kb.toml`) instead
@@ -6597,6 +6635,8 @@ data lives in the package (your sites, keys, and rules go in a private config fi
 
 This page orients you; each stage below has its own focused page.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/knowledge-layer.webp" alt="Teal threads of light link the stones on a shallow lake bed while Pebble watches: the knowledge layer links the stored repositories." width="1200" height="800" loading="lazy">
+
 ```mermaid
 flowchart LR
   IDX["kb index"] --> CON["kb connect"] --> EMB["kb embed"] --> WIK["kb wiki"] --> SRV(["kb serve"])
@@ -6814,6 +6854,8 @@ You should get up to three lines shaped like
 `demo/app · src/forecast.py · class · ForecastService`. If you get
 `No matches for 'ForecastService'`, check the index is populated with `contextlake doctor` before
 suspecting the query.
+
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/impact.webp" alt="Ripples from one dropped pebble spread across the lake and light up pebbles on the far bank, the way a change reaches other code." width="1200" height="800" loading="lazy">
 
 ## See what breaks: `kb impact`
 
@@ -7680,6 +7722,8 @@ flowchart LR
 - `contextlake` on the `PATH` of the editor, because every config below starts the server with `contextlake kb serve`.
 - Optional: embeddings from `contextlake kb embed`, which add the `semantic_search` and `hybrid_search` tools.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/serve.webp" alt="Pebble on a dock handing the glowing context-pebble to a blank floating window, the way the MCP server hands context to an editor." width="1200" height="800" loading="lazy">
+
 ## The quick way: let contextlake wire your editors
 
 From your workspace root:
@@ -8501,6 +8545,8 @@ On the dashboard, a repo too large for one diagram is narrowed to its largest mo
 automatically. That works recursively, to any depth, with a clickable breadcrumb back out and a
 "Narrow further..." picker, instead of an arbitrary slice. See
 [Using the dashboard](using-the-dashboard.md).
+
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/diagrams.webp" alt="Ripples on the lake form simple diagram shapes beside Pebble: one graph, drawn in many formats." width="1200" height="800" loading="lazy">
 
 ## Output formats
 
@@ -10536,6 +10582,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [10.0.1] - 2026-11-08
+
+A docs-only release. The code is the same as 10.0.0; the changes are in the docs, the docs site
+build and its deploy script.
+
+### Changed
+
+- **The docs site has a short hub.** `docs.html` is built from a new `docs/overview.md`, grouped
+  by what the reader wants to do. `README.md` stays the full GitHub and PyPI front page.
+- **The quickstart starts with a one-repo path that needs no setup.** It installs the `llm-local`
+  extra before `bootstrap`, lists the bootstrap stages as numbered steps, defines PAT, extra and
+  HEAD, and links search, the wiki and scheduling from Next steps.
+- **How-to pages carry Prerequisites and a Verification step**, a line that names the reader, and
+  headings without section numbers. The MCP page puts its steps first.
+- **Docs pages are easier to read and to use.** Body text is 16px, labels 12px and code 14px or
+  larger. Band labels, the focus ring and small text pass WCAG AA contrast. An "On this page" list
+  shows below 1081px, the sidebar marks the current page and folds on phones, the code copy button
+  shows on touch screens, Quickstart leads the Get started band, and the header links Docs,
+  Quickstart and Changelog.
+- **Pebble pictures and tip boxes.** Ten painterly pictures of Pebble, the mascot, sit next to the
+  passages they explain, and the docs header uses a painterly Pebble. Pebble speaks only in a
+  "Pebble's tip" box, at most one per page; three pages have one. `BRANDING.md` and the style
+  guide record these rules.
+- `docs/installing.md` has a chart from the reader's goal to the extra to install, and carries the
+  versioning promise.
+
+### Fixed
+
+- `docs/cli-reference.md` lists all 13 commands that accept `--dry-run`.
+- `docs/configuration.md` names the two files `init --local` writes and where it puts `store_dir`.
+- `docs/installing.md` names parser version 14.
+- `docs/keeping-it-fresh.md`: the cron example logs with `--log-file` instead of a shell redirect,
+  which grows without bound.
+- `site/deploy.sh` sets `PRE_COMMIT_ALLOW_NO_CONFIG=1` for its `gh-pages` commit, which failed
+  under the repo's pre-commit hook during the 10.0.0 deploy.
+- The 404 page loads the self-hosted fonts instead of Google Fonts.
 
 ## [10.0.0] - 2026-11-08
 
@@ -21941,7 +22024,7 @@ Never default to "he" or "she". Use diverse, realistic names in examples.
 BRANDING.md section 5.7 allows painterly Pebble pictures on docs pages. These rules apply to each one.
 
 - **Style.** Painterly only, as in BRANDING.md section 5.8: no hard outlines, no pure black, blue-grey fur
-  and a slim river-otter build as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section
+  and a natural river-otter build as in [the mascot spec](branding/mascot.md). Follow BRANDING.md section
   5.10 to generate it. Generate the background with no text. Never ship AI-drawn lettering.
 - **Gaze.** Pebble looks at the content, the pebble or the passage the picture sits beside, never off the
   page and never straight at the reader (BRANDING.md section 5.9).
@@ -22159,6 +22242,8 @@ One controlling metaphor: a clear lake seen in depth. **Deep** is the real, comp
 **clear** is the precise answer back. The lake is calm and legible to the bottom, never threatening. No
 oceans, waves, fishing, or drowning, and never "data lake".
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/brand.webp" alt="Pebble surfacing from a calm lake at dawn, the scene behind the lake metaphor described in this section." width="1200" height="800" loading="lazy">
+
 ## Taglines
 
 - **Master:** "Deep context. Clear answers."
@@ -22174,7 +22259,7 @@ cradling a glowing translucent context-pebble in both forepaws, offering it forw
 anti-hallucination promise made friendly.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter cradling a glowing translucent context-pebble in both forepaws, offering it forward." width="240">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/pebble-doc.png" alt="Pebble, contextlake's mascot: a small, friendly dark blue-grey river otter holding a glowing teal context-pebble in both forepaws and looking down at it." width="240">
 </p>
 
 ## Color

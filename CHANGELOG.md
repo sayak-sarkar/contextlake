@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.1] - 2026-11-08
+
+A docs-only release. The code is the same as 10.0.0; the changes are in the docs, the docs site
+build and its deploy script.
+
+### Changed
+
+- **The docs site has a short hub.** `docs.html` is built from a new `docs/overview.md`, grouped
+  by what the reader wants to do. `README.md` stays the full GitHub and PyPI front page.
+- **The quickstart starts with a one-repo path that needs no setup.** It installs the `llm-local`
+  extra before `bootstrap`, lists the bootstrap stages as numbered steps, defines PAT, extra and
+  HEAD, and links search, the wiki and scheduling from Next steps.
+- **How-to pages carry Prerequisites and a Verification step**, a line that names the reader, and
+  headings without section numbers. The MCP page puts its steps first.
+- **Docs pages are easier to read and to use.** Body text is 16px, labels 12px and code 14px or
+  larger. Band labels, the focus ring and small text pass WCAG AA contrast. An "On this page" list
+  shows below 1081px, the sidebar marks the current page and folds on phones, the code copy button
+  shows on touch screens, Quickstart leads the Get started band, and the header links Docs,
+  Quickstart and Changelog.
+- **Pebble pictures and tip boxes.** Ten painterly pictures of Pebble, the mascot, sit next to the
+  passages they explain, and the docs header uses a painterly Pebble. Pebble speaks only in a
+  "Pebble's tip" box, at most one per page; three pages have one. `BRANDING.md` and the style
+  guide record these rules.
+- `docs/installing.md` has a chart from the reader's goal to the extra to install, and carries the
+  versioning promise.
+
+### Fixed
+
+- `docs/cli-reference.md` lists all 13 commands that accept `--dry-run`.
+- `docs/configuration.md` names the two files `init --local` writes and where it puts `store_dir`.
+- `docs/installing.md` names parser version 14.
+- `docs/keeping-it-fresh.md`: the cron example logs with `--log-file` instead of a shell redirect,
+  which grows without bound.
+- `site/deploy.sh` sets `PRE_COMMIT_ALLOW_NO_CONFIG=1` for its `gh-pages` commit, which failed
+  under the repo's pre-commit hook during the 10.0.0 deploy.
+- The 404 page loads the self-hosted fonts instead of Google Fonts.
+
 ## [10.0.0] - 2026-11-08
 
 10.0.0 ships the code of 10.0.0rc6 unchanged. The changes since 9.8.3 are in the six
