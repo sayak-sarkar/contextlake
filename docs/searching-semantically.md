@@ -1,4 +1,6 @@
-# Semantic search
+# Searching semantically
+
+For engineers who want to find code by what it does, not by its name.
 
 Semantic search adds natural-language retrieval on top of the graph, so you can find code by
 what it does even when you don't know its name. It is on by default since 7.7.0. Set
@@ -35,6 +37,15 @@ is reachable *and* already has the configured model pulled, and otherwise the bu
 `kb-local` extra). If neither is available it embeds nothing rather than reaching for a network service.
 Both of those run on your machine, so on the defaults your code never leaves it; name `provider =
 "openai"` explicitly if you want a hosted model instead.
+
+## Prerequisites
+
+- An indexed store. Run `contextlake kb index` first (see
+  [Indexing the code graph](indexing-the-code-graph.md)).
+- An embedder: a local Ollama with the model pulled, or the built-in CPU model (the `kb-local`
+  extra).
+- Vectors. Run `contextlake kb embed` once. A search over a store with no vectors falls back to
+  keyword results and names `kb embed` as the fix.
 
 ## Backends and tuning
 
@@ -78,13 +89,26 @@ $ contextlake kb query reading --retriever fts
   demo/app · src/readings.py · function · load_readings
 ```
 
+## Verification
+
+1. Run `contextlake kb embed`. It ends with a line in this form, where N and M are your counts:
+
+   ```text
+   ✓ Embed complete: N vector(s) written (M total in store)
+   ```
+
+2. Run `contextlake kb query reading --retriever hybrid --limit 6`. The output is one cited hit per
+   line, as in the example above.
+3. If the query says no vectors exist and names `kb embed`, step 1 did not finish. Re-run
+   `contextlake kb embed`.
+
 ## When a query finds nothing
 
 A vector index has no concept of "no match". It returns its k nearest however far away they are,
 and every one of them is a real node with a real file and line, so an answer about nothing you
 asked reads as cited and checkable.
 
-`--retriever semantic|hybrid` therefore refuses a query when **not one** of its content terms
+`--retriever semantic|hybrid` refuses a query when **not one** of its content terms
 appears anywhere in the index, and names the terms it could not find:
 
 ```
@@ -190,6 +214,6 @@ It is off by default: it does filesystem work proportional to the results and ne
 
 ## See also
 
-- [Index the code graph](indexing-the-code-graph.md)
-- [Connect and enrich](connecting-and-enriching.md)
-- [Serve it to your editor](serving-over-mcp.md)
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Connecting and enriching](connecting-and-enriching.md)
+- [Serving over MCP](serving-over-mcp.md)

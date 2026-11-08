@@ -1,4 +1,6 @@
-# Bootstrap and keep it fresh
+# Keeping it fresh
+
+For anyone who wants the graph to stay current without running commands by hand.
 
 `bootstrap` runs the whole pipeline in one command, and it is safe to re-run, so the same command
 that sets a workspace up is the one that keeps it current. This page covers that command, how to
@@ -158,8 +160,12 @@ steering, without touching an in-progress working tree.
 0 * * * * cd /home/user/work && /usr/bin/contextlake mirror update >> /tmp/contextlake.log 2>&1
 
 # the whole pipeline, every 30 minutes
-*/30 * * * * /usr/bin/contextlake bootstrap >> ~/.contextlake/refresh.log 2>&1
+*/30 * * * * /usr/bin/contextlake --log-file ~/.contextlake/refresh.log bootstrap
 ```
+
+The last entry uses `--log-file`, which rotates its own file (see
+[Log files and rotation](#log-files-and-rotation)). contextlake does not create the log file's
+directory, so make it first with `mkdir -p ~/.contextlake`.
 
 Or use the shipped systemd units as a starting point:
 [`examples/contextlake.service`](../examples/contextlake.service) and
@@ -379,7 +385,7 @@ pipeline's stages, which is how you confirm you are reading one run and not two 
 ## See also
 
 - [Scheduling runs](scheduling.md), `contextlake schedule` measuring and installing this for you
-- [Index the code graph](indexing-the-code-graph.md), the stage everything else builds on
-- [Generate the wiki](generating-the-wiki.md), the stage that needs a model
-- [Reading the console output](console-output.md), exit codes, JSON logs, and metric names
+- [Indexing the code graph](indexing-the-code-graph.md), the stage everything else builds on
+- [Generating the wiki](generating-the-wiki.md), the stage that needs a model
+- [Console output](console-output.md), exit codes, JSON logs, and metric names
 - [Troubleshooting](troubleshooting.md), when a scheduled run stops working

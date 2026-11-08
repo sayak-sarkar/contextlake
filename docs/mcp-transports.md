@@ -1,13 +1,16 @@
 # MCP transports and limits
 
-The three transports `contextlake kb serve` speaks, how each one is authenticated, how many
-tool calls it will run at once, and the provenance every cited node carries. Read this before
+For operators who expose the server on a socket, and anyone debugging a client that cannot reach it.
+
+This page covers the three transports that `contextlake kb serve` speaks for the Model Context
+Protocol (MCP): how each one is authenticated, how many tool calls it runs at once, and the
+provenance every cited node carries. Read this before
 exposing the server on a socket, or when a client cannot reach an endpoint it can see.
 
 | Transport | Endpoint | Authenticated | Use it when |
 | --- | --- | --- | --- |
 | `stdio` (default) | none, a pipe | not needed | Your editor spawns the server itself. |
-| `http` | `http://127.0.0.1:8765/mcp` | bearer token | Any new remote or network wiring. |
+| `http` | `http://127.0.0.1:8765/mcp` | bearer token (a secret string the client sends with each request) | Any new remote or network wiring. |
 | `sse` | `http://127.0.0.1:8765/sse` | bearer token | Only a client that requires it. |
 
 ## Transports
@@ -357,7 +360,7 @@ inserted above it. The answer still says 88.
 
 A confidently wrong citation is worse than a miss, because the agent goes and reads it.
 
-Every node a tool returns therefore carries **`citation_status`**, decided against the file on disk
+Every node a tool returns carries **`citation_status`**, decided against the file on disk
 as the answer is built:
 
 | value | what it means |
@@ -376,7 +379,7 @@ either way: the guard discloses, it never withholds a result or refuses.
 were written after indexing escalate to a confirming read. That read asks the same question
 `--verify-citations` asks and shares its implementation. Measured on a real store, a full MCP call
 costs about **1.7% more when nothing has changed** and 28.6% in the worst case where every file in
-the response was modified, at roughly 1.5 tokens per node.
+the response was modified, at 1.5 tokens per node.
 
 Past 32 confirming reads in one request the remainder are reported `stale` with
 `modified_after_index` rather than quietly passed. A budget nobody is told about would read as a

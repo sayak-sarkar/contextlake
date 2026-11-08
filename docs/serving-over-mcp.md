@@ -1,8 +1,10 @@
-# Serve it to your editor (MCP)
+# Serving over MCP
 
-The third layer. Once the [knowledge layer](knowledge-layer.md) is built, `contextlake kb serve`
-exposes it as an **MCP server**, so any MCP client (Claude Code, Windsurf, VS Code, Kiro, Cursor,
-Postman, …) can query the graph directly instead of grepping.
+For developers who want their editor or AI agent to query the graph.
+
+`contextlake kb serve` runs the knowledge layer as an MCP (Model Context Protocol) server. Your editor connects to it and
+asks the graph questions instead of searching files with grep. This page wires up your editor and
+checks that it can see the graph.
 
 ```mermaid
 flowchart LR
@@ -21,113 +23,12 @@ flowchart LR
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
 </div>
 
-The transport only decides how your client reaches the server; the tool set behind it is the same
-whichever one you pick. `ask` is a front door onto those tools, not a layer above them, so an agent
-can call either.
+## Prerequisites
 
-**Start with `ask`.** One tool, natural language: `ask("who calls load_readings")` /
-`ask("what breaks if I change ReadingProcessor")` / `ask("what extends BaseController")` /
-`ask("explain the forecast-api")`. It classifies the question, routes it to the right
-substrate below (definition / callers / dependents / subclasses / impact / owners /
-explain / search), resolves the symbol or repo, and returns one labeled answer (graph
-facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
-no wiki exists yet). An agent that would rather not choose among the tools can call `ask`.
-
-`ask` has no route for what a repository depends on. "What does X depend on?" is answered by
-search. For the list, call `repo_dependencies` with `direction` set to `out`. "Who depends on X?"
-goes to `find_dependents`.
-
-**Most of it needs no model.** The underlying graph tools work on their own:
-`search_code`, `find_definition`, `find_callers`, `find_callees`, `find_dependents`, `get_node`,
-`get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
-`repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_generated_doc`,
-`get_fleet_doc`, `get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`,
-`graph_health`, plus a `kb://stats` resource with the store counts.
-
-**`get_readme` follows a symlinked README, unless the key was created with an access flag.** It
-reads the README from the local clone and follows a link wherever it points. A key created with any
-of `--tools`, `--repos`, `--owners`, `--external`, `--no-external`, `--rate`, `--cost-budget`, or a
-`--burst` set beside a `--rate` reads only inside the clone, and a README linked to a file outside
-it is skipped. These callers follow the link:
-
-- stdio
-- the shared token
-- a key created with none of those flags
-
-A `[serve]` default such as `default_rate` is a property of the server, not of the key, so it does
-not change this.
-
-**Every list-returning tool says why a result is empty.** An empty list on its own carries two
-opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
-cannot see the store, so it reports the first as a fact about the codebase when the truth is the
-second.
-
-- `get_neighbors` names an id that is not in the graph rather than reporting it as a node without
-  edges.
-- `find_definition` says whether a name is absent entirely or merely excluded by a `kind`/`repo`
-  filter.
-- `search_code` says whether the query's terms are indexed at all, and carries `total`/`truncated`
-  like its siblings.
-- A `repo` filter that names no indexed repository is answered with an empty result and a `note`
-  that starts `Unknown repo` and names the ids that match, in `search_code`, `find_definition`,
-  `find_dependents`, `semantic_search`, `hybrid_search` and `ask`. A repo outside the key's scope
-  gets the same note as one that does not exist.
-
-**A node reached through an edge says how far to trust that edge.** `find_callers`,
-`find_callees`, `find_dependents`, the hops of `shortest_path`, and the callers, dependents and
-subclasses answers of `ask` return each node with a `confidence` field: `EXTRACTED`, `INFERRED`
-or `AMBIGUOUS`. It is the confidence of the edge that reached the node, the same edge whose
-line is in `call_line` or `edge_line`. Check an `INFERRED` or `AMBIGUOUS` entry against that
-line before relying on it.
-
-The field is `null` where the tool names no single edge that reached the node: `get_node`,
-`find_definition`, the searches (`search_code`, `semantic_search`, and `hybrid_search`, which ranks
-graph-expanded nodes by PageRank mass rather than by one edge), and the first node of a path.
-`null` does not mean `EXTRACTED`. Clients that ignore the field keep working.
-
-`get_generated_doc` returns what `kb docs` wrote:
-
-- `kind="api"` for the reference, with its real call sites
-- `kind="design"` for the design notes
-
-Neither involves a model, so neither carries the wiki's advisory caveat.
-
-Both carry `stale`. That is true when the page was generated from a different commit than the
-repo's current indexed head, **and also when either is unknown**. A page written before generated
-documents recorded their commit has no stamp, and not knowing is the same risk to a caller as
-being out of date.
-
-`get_fleet_doc` returns the one page that describes the **whole store**: which packages
-more than one repository requires, which of those are pinned differently across them, and
-which repositories declare no runtime dependency at all. It takes **no `repo` argument**,
-because there is one such page per store rather than one per repository -- which is also
-why it is a separate tool instead of a third `kind` on `get_generated_doc`.
-
-Its staleness means something different, and the difference matters.
-
-A per-repo page carries the commit it was generated from. This one spans many repos, so it
-carries a **fingerprint of every member's commit and parser version**. It is stale when that
-fingerprint no longer matches the store.
-
-That catches a case a single commit cannot express: **a new repository joining makes the page
-wrong without any existing member moving**, because the page's populations count a fleet that
-grew.
-
-A page carrying no fingerprint reports `stale=true` with `doc_fingerprint` absent. That means
-**nothing is known**, not known to be out of date, and the `note` says so.
-
-It is written only by an **unscoped** `kb docs` run. A fleet view of part of the store
-would report shares and disagreements that are not true of the whole, and a reader could
-not tell the page had been scoped, so a run naming particular repos skips it and says it
-did. `get_fleet_doc` names that as the likely cause when the page is missing.
-
-`semantic_search` and `hybrid_search` are the two exceptions. They register **only when
-embeddings exist**, which takes an embedder that loads and a vector store. `[embeddings]` is on
-by default (since 7.7.0), so the embedder needs no setting unless `kb.toml` says
-`enabled = false`. It needs a provider: a local Ollama, the built-in CPU model
-(`pip install 'contextlake[kb-full]'`) or `provider = "openai"` with a key.
-`contextlake kb embed` creates the vector store. Without both, the server starts and says so,
-the two tools are absent, and everything above still works.
+- An indexed store. Run `contextlake kb index` first (see [Indexing the code graph](indexing-the-code-graph.md)).
+- An MCP client: Claude Code, Windsurf, VS Code, Kiro, Cursor or Postman.
+- `contextlake` on the `PATH` of the editor, because every config below starts the server with `contextlake kb serve`.
+- Optional: embeddings from `contextlake kb embed`, which add the `semantic_search` and `hybrid_search` tools.
 
 ## The quick way: let contextlake wire your editors
 
@@ -181,7 +82,7 @@ That line exists because two different inputs decide two different things:
 - **Where the files land** comes from `--out`, or `--workspace`, or the current directory.
 - **Which store the symbol counts and repo list come from** comes from the config chain.
 
-Running `steer` from the wrong directory therefore rewrote a correct 5,500-symbol `AGENTS.md`
+Running `steer` from the wrong directory rewrote a correct 5,500-symbol `AGENTS.md`
 down to a two-symbol one. Exit `0`, no warning, and every number in the replacement was accurate
 for the store that happened to resolve.
 
@@ -260,13 +161,161 @@ VS Code, in `.vscode/mcp.json` (note the `servers` key: a different schema from 
 }
 ```
 
+JSON does not expand `~`, but contextlake does: it expands `~` and environment variables in the
+`--config` value itself, so the `args` above work as written.
+
 Transport choices, concurrency limits and the provenance each cited node carries are in [MCP transports and limits](mcp-transports.md).
 
-## Once connected
+## Verification
 
-Ask the agent things like *"where is `ForecastService` defined?"*, *"who calls `load_readings`?"*, or
-*"which repos depend on `shared-core`?"* and it calls the graph tools directly, you can even
+1. Start the server by hand once. Run `contextlake kb serve --config ~/.contextlake/kb.toml`. The
+   server logs to standard error and waits for a client on standard input. Its first lines include:
+
+   ```text
+   Serving knowledge graph over MCP (stdio)
+   ```
+
+   A store with no indexed repository logs `This store holds no indexed repository` first. Press
+   `Ctrl-C` to stop it.
+2. Open your editor's MCP panel or tool list. Check that `contextlake-kb` is listed and that its tools
+   include `ask`, `search_code`, `find_definition`, `list_repos` and `graph_stats`.
+   `semantic_search` and `hybrid_search` appear only when embeddings exist.
+3. Ask the agent *"which repos can you see?"*. Compare the repos it names with the repos in
+   your store. If they differ, check which store `contextlake kb serve` opened.
+
+Then ask things like *"where is `ForecastService` defined?"*, *"who calls `load_readings`?"* or
+*"which repos depend on `shared-core`?"*. The agent calls the graph tools directly. You can also
 have it draft wiki pages from the graph without the built-in `wiki` command.
+
+If the entry shows as failed, check that `contextlake` is on the editor's `PATH`. Check that the
+`--config` path exists too: a `--config` path that does not exist stops the server with
+`--config path not found` instead of falling back to another config.
+
+## How the tools behave
+
+The transport only decides how your client reaches the server; the tool set behind it is the same
+whichever one you pick. `ask` is a front door onto those tools, not a layer above them, so an agent
+can call either.
+
+### Start with `ask`
+
+One tool, natural language: `ask("who calls load_readings")` /
+`ask("what breaks if I change ReadingProcessor")` / `ask("what extends BaseController")` /
+`ask("explain the forecast-api")`. It classifies the question, routes it to the right
+substrate below (definition / callers / dependents / subclasses / impact / owners /
+explain / search), resolves the symbol or repo, and returns one labeled answer (graph
+facts cited; `explain` returns advisory wiki prose, or the repo's grounded anatomy when
+no wiki exists yet). An agent that would prefer not to choose among the tools can call `ask`.
+
+`ask` has no route for what a repository depends on. "What does X depend on?" is answered by
+search. For the list, call `repo_dependencies` with `direction` set to `out`. "Who depends on X?"
+goes to `find_dependents`.
+
+### The graph tools need no model
+
+The underlying graph tools work on their own:
+`search_code`, `find_definition`, `find_callers`, `find_callees`, `find_dependents`, `get_node`,
+`get_neighbors`, `shortest_path`, `graph_stats`, `repo_dependencies`, `repo_flow`,
+`repo_event_flow`, `blast_radius`, `who_knows`, `get_wiki`, `get_generated_doc`,
+`get_fleet_doc`, `get_readme`, `get_repo_brief`, `list_repos`, `get_repo_links`,
+`graph_health`, plus a `kb://stats` resource with the store counts.
+
+### `get_readme` and symlinks
+
+`get_readme` follows a symlinked README, unless the key was created with an access flag. It
+reads the README from the local clone and follows a link wherever it points. A key created with any
+of `--tools`, `--repos`, `--owners`, `--external`, `--no-external`, `--rate`, `--cost-budget`, or a
+`--burst` set beside a `--rate` reads only inside the clone, and a README linked to a file outside
+it is skipped. These callers follow the link:
+
+- stdio
+- the shared token
+- a key created with none of those flags
+
+A `[serve]` default such as `default_rate` is a property of the server, not of the key, so it does
+not change this.
+
+### Every list-returning tool says why a result is empty
+
+An empty list on its own carries two
+opposite meanings: "nothing matched" and "nothing was looked up". The caller here is an agent that
+cannot see the store, so it reports the first as a fact about the codebase when the truth is the
+second.
+
+- `get_neighbors` names an id that is not in the graph instead of reporting it as a node without
+  edges.
+- `find_definition` says whether a name is absent, or merely excluded by a `kind`/`repo`
+  filter.
+- `search_code` says whether the query's terms are indexed at all, and carries `total`/`truncated`
+  like its siblings.
+- A `repo` filter that names no indexed repository is answered with an empty result and a `note`
+  that starts `Unknown repo` and names the ids that match, in `search_code`, `find_definition`,
+  `find_dependents`, `semantic_search`, `hybrid_search` and `ask`. A repo outside the key's scope
+  gets the same note as one that does not exist.
+
+### A node reached through an edge says how far to trust that edge
+
+`find_callers`,
+`find_callees`, `find_dependents`, the hops of `shortest_path`, and the callers, dependents and
+subclasses answers of `ask` return each node with a `confidence` field: `EXTRACTED`, `INFERRED`
+or `AMBIGUOUS`. It is the confidence of the edge that reached the node, the same edge whose
+line is in `call_line` or `edge_line`. Check an `INFERRED` or `AMBIGUOUS` entry against that
+line before relying on it.
+
+The field is `null` where the tool names no single edge that reached the node: `get_node`,
+`find_definition`, the searches (`search_code`, `semantic_search`, and `hybrid_search`, which ranks
+graph-expanded nodes by PageRank mass instead of by one edge), and the first node of a path.
+`null` does not mean `EXTRACTED`. Clients that ignore the field keep working.
+
+### Generated documents and staleness
+
+`get_generated_doc` returns what `kb docs` wrote:
+
+- `kind="api"` for the reference, with its real call sites
+- `kind="design"` for the design notes
+
+Neither involves a model, so neither carries the wiki's advisory caveat.
+
+Both carry `stale`. That is true when the page was generated from a different commit than the
+repo's current indexed head, **and also when either is unknown**. A page written before generated
+documents recorded their commit has no stamp, and not knowing is the same risk to a caller as
+being out of date.
+
+### The fleet document
+
+`get_fleet_doc` returns the one page that describes the **whole store**: which packages
+more than one repository requires, which of those are pinned differently across them, and
+which repositories declare no runtime dependency at all. It takes **no `repo` argument**,
+because there is one such page per store, not one per repository, which is also
+why it is a separate tool instead of a third `kind` on `get_generated_doc`.
+
+Its staleness means something different, and the difference matters.
+
+A per-repo page carries the commit it was generated from. This one spans many repos, so it
+carries a **fingerprint of every member's commit and parser version**. It is stale when that
+fingerprint no longer matches the store.
+
+That catches a case a single commit cannot express: **a new repository joining makes the page
+wrong without any existing member moving**, because the page's populations count a fleet that
+grew.
+
+A page carrying no fingerprint reports `stale=true` with `doc_fingerprint` absent. That means
+**nothing is known**, not known to be out of date, and the `note` says so.
+
+It is written only by an **unscoped** `kb docs` run. A fleet view of part of the store
+would report shares and disagreements that are not true of the whole, and a reader could
+not tell the page had been scoped, so a run naming particular repos skips it and says it
+did. `get_fleet_doc` names that as the likely cause when the page is missing.
+
+### The two tools that need embeddings
+
+`semantic_search` and `hybrid_search` are the two exceptions. They register **only when
+embeddings exist**, which takes an embedder that loads and a vector store. `[embeddings]` is on
+by default (since 7.7.0), so the embedder needs no setting unless `kb.toml` says
+`enabled = false`. It needs a provider: a local Ollama, the built-in CPU model
+(`pip install 'contextlake[kb-full]'`) or `provider = "openai"` with a key.
+`contextlake kb embed` creates the vector store. Without both, the server starts and says so,
+the two tools are absent, and everything above still works.
 
 ## See also
 

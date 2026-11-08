@@ -1,4 +1,6 @@
-# Mirror repositories
+# Mirroring repositories
+
+For anyone who keeps a local copy of a team's repositories and wants it to stay current.
 
 Mirror your Git repositories locally and keep them current: fetch, clone, update, switch to the most
 active branch, verify, and audit, with branch-safety guardrails. New here? Start with the
@@ -19,6 +21,13 @@ Gitea, including its Codeberg and Forgejo flavors. Pick one with `platform` in t
 places: this page's wording, the `--group` help text, the cached project files
 (`gitlab_projects.txt` / `.json`) and the `GitLab projects (active)` line in `mirror status`. Read
 all of those as "the remote you configured", whichever one it is.
+
+## Prerequisites
+
+- `git` on your `PATH`, and a platform token such as `GITLAB_TOKEN`. On GitLab an authenticated
+  `glab` works instead. See [Installing](installing.md#prerequisites).
+- A config file that names your group and workspace. `contextlake init` writes one; see
+  [Configuration](configuration.md).
 
 ## Command reference
 
@@ -149,7 +158,7 @@ A fully synced workspace shows `0` for both.
 
 **Workspaces holding more than one group.** Local paths are relative to the group, so a clone of
 `alpha/team/api` and one of `beta/team/api` both land at `team/api` and the path cannot say which
-group a repo came from. `status`, `verify`, and the branch-switch pass therefore read each clone's
+group a repo came from, so `status`, `verify`, and the branch-switch pass read each clone's
 `origin` remote and leave repos from other groups out of scope:
 
 - They are counted under **Other groups** rather than reported as **Extra**.
@@ -405,6 +414,24 @@ two years, and repos with no commits. The full per-repo table is written as both
 
 The scan is parallel, read-only, and works offline from the fetch cache.
 
+## Verification
+
+1. Run `contextlake mirror fetch` to refresh the project list. `status` reads that cache.
+2. Run `contextlake mirror status`. It changes nothing on disk.
+3. Read the counts. A fully synced workspace looks like this, with your own totals:
+
+   ```text
+   Synchronization status
+     • GitLab projects (active)  128
+     • Local repositories        128
+     ✓ Synchronized              128
+     · Missing                     0
+     · Extra                       0
+   ```
+
+4. If **Missing** shows a number above `0`, run `contextlake mirror clone`. If **Extra** shows a number
+   above `0`, review those repos by hand; contextlake leaves them alone.
+
 ## Configuration
 
 contextlake's config-file precedence and the full settings reference now have their own page: **[Configuration](configuration.md)**.
@@ -562,9 +589,9 @@ looks in one place rather than guessing which page owns their symptom.
 
 ## See also
 
-- [Bootstrap and keep it fresh](keeping-it-fresh.md), scheduling a sync and re-indexing on commit
+- [Keeping it fresh](keeping-it-fresh.md), scheduling a sync and re-indexing on commit
 - [Scheduling runs](scheduling.md), a self-installed systemd timer or crontab entry
 - [Configuration](configuration.md), the full settings reference
-- [Reading the console output](console-output.md), the status glyphs and the exit codes
-- [Knowledge layer](knowledge-layer.md), what to build on top of the mirror
+- [Console output](console-output.md), the status glyphs and the exit codes
+- [The knowledge layer](knowledge-layer.md), what to build on top of the mirror
 - [Troubleshooting](troubleshooting.md), when a mirror command misbehaves

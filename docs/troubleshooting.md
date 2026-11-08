@@ -1,5 +1,7 @@
 # Troubleshooting
 
+For anyone whose install, mirror or run is not working.
+
 Problems that have been hit while installing or running contextlake, each with the
 fix and the reason behind it. If you hit something that is not here,
 [open an issue](https://github.com/sayak-sarkar/contextlake/issues): a reproducible failure
@@ -174,7 +176,7 @@ missing, which is most of what anyone would ask you for anyway.
 
 ## See also
 
-- [Install and upgrade](installing.md), every channel, and how to upgrade safely
-- [Reading the console output](console-output.md), decoding a run
+- [Installing and upgrading](installing.md), every channel, and how to upgrade safely
+- [Console output](console-output.md), decoding a run
 - [Command reference](cli-reference.md), the exact flags
 - [CONTRIBUTING.md](../CONTRIBUTING.md), problems you hit working on contextlake itself

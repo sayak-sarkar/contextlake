@@ -1,4 +1,6 @@
-# Index the code graph
+# Indexing the code graph
+
+For engineers who want a queryable graph of their code.
 
 Indexing turns your mirrored repos into a queryable knowledge graph. `contextlake kb index --workspace
 ~/work` walks every git repo under a folder and builds the graph. Runs are incremental by default;
@@ -52,6 +54,11 @@ flowchart TD
 The shape of the directory is measured before any of it is indexed, and the next section walks each
 outcome.
 
+## Prerequisites
+
+- The knowledge layer installed (the `[kb]` extra). See [Installing](installing.md).
+- One or more git repositories on disk, such as the ones [mirroring](mirroring-repositories.md) cloned.
+
 ## Which command for which directory
 
 `kb index <dir>` indexes that directory as **one** repository. `kb index --workspace <dir>` walks it
@@ -81,14 +88,14 @@ Only then does it decide:
 
 | What the directory looks like | What happens |
 | --- | --- |
-| Several repositories, effectively nothing of your own outside them | refused; run `--workspace <dir>` |
+| Several repositories, and nothing of your own outside them | refused; run `--workspace <dir>` |
 | One repository, nothing at all outside it | refused; the directory is one level too high, and the command names the repository |
 | Real content of yours outside the repositories (your sources plus a vendored dependency) | indexed as one repository, with a line saying so |
 | A git repository (`.git` present), whatever it contains | indexed, no diagnosis at all |
 
 **`--bundle` opts back in.** It indexes the directory as one repository regardless of shape, and it
 is read before anything is measured, so it always works. Reach for it when you want one
-bundled repository -- and note the cost you are accepting: the nested repositories' files are filed
+bundled repository. Note the cost you are accepting: the nested repositories' files are filed
 under the directory's name, so if you later index them properly they are in the graph twice. `kb
 forget <repo-id>` removes a bundle you did not mean to create.
 
@@ -239,6 +246,24 @@ Each glob is matched against the file's path relative to the repo, and against i
 It is a small, dependency-free subset of gitignore syntax. No negation, no `**`, no anchoring.
 Enough to drop vendored trees and lockfiles from the graph.
 
+## Verification
+
+1. Read the last line of the run. A good run ends with the workspace line and no failures:
+
+   ```text
+   ✓ Workspace indexed: N repos, N nodes, N edges (N unchanged, 0 failed)
+   ```
+
+2. Query a symbol name you know is in one of the repos:
+
+   ```bash
+   contextlake kb query load_readings
+   ```
+
+   Each hit is one line: repo, file, kind and name.
+3. Run `contextlake kb lint`. It exits `0` when the graph has no dangling edges, no HEAD-stale
+   repos and no unreadable repos.
+
 ## Health and maintenance
 
 **`contextlake doctor`** checks the environment: FTS5, `git` and `glab` on PATH, the store, the
@@ -290,11 +315,11 @@ upgrading to a build with a new parser could turn a green CI gate red on its own
 Two states are reported apart from stale, because re-indexing clears a stale repository and cannot clear
 either of them:
 
-- **empty** -- the repository has no commits at all, so there is no HEAD and nothing to index. Reported,
+- **empty**: the repository has no commits at all, so there is no HEAD and nothing to index. Reported,
   and not counted against the exit code: there is nothing for a reader to do about it.
-- **shard-imported** -- indexed from a graph-shard JSON rather than a checkout, so it has no history to
+- **shard-imported**: indexed from a graph-shard JSON instead of a checkout, so it has no history to
   be behind. Also advisory, for the same reason.
-- **unreadable** -- the recorded path no longer exists, or git will not answer for a repository there.
+- **unreadable**: the recorded path no longer exists, or git will not answer for a repository there.
   Re-clone it or drop it from the store. This one does fail the run, because nothing can be cited from it.
 
 ### Shared file nodes
@@ -348,15 +373,15 @@ edges it took 0.45 s.
 
 The full node and edge model, language by language, is in [The code graph model](code-graph-model.md).
 
-## The graph, on this page
+## What an index produces
 
 <img class="shot" src="graph.jpg" width="1360" height="834" data-embed="graph-embed.html"
   alt="The contextlake graph visualizer running on contextlake's own code: symbols laid out as a node graph with per-kind glyphs, a kind legend, a search field and a minimap in the corner.">
-<p class="shot-cap">What an index produces. This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
+<p class="shot-cap">This one is contextlake's own repository, indexed by the commands on this page. It is the shipped visualizer, not a recording, and it runs
 offline with no network calls.</p>
 
 ## See also
 
-- [Connect and enrich](connecting-and-enriching.md)
-- [Semantic search](searching-semantically.md)
-- [Serve it to your editor](serving-over-mcp.md)
+- [Connecting and enriching](connecting-and-enriching.md)
+- [Searching semantically](searching-semantically.md)
+- [Serving over MCP](serving-over-mcp.md)

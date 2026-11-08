@@ -1,4 +1,6 @@
-# Generate the wiki
+# Generating the wiki
+
+For maintainers who want grounded, reviewed prose about each repository.
 
 Every indexed repository gets one wiki page per scope, and it exists the moment the repo is indexed.
 `contextlake kb wiki` writes a **structural page** built entirely from the graph, the manifests and
@@ -37,7 +39,7 @@ flowchart TD
 It carries seven sections, and any section with nothing in it is omitted and named at the end, so an
 absence never reads as an oversight:
 
-1. **Entry points and how to run it** -- `main` and its equivalents, HTTP routes, Make targets,
+1. **Entry points and how to run it**: `main` and its equivalents, HTTP routes, Make targets,
    Dockerfile stages.
 2. **Getting started**, the ordered path a newcomer takes: install what the repo declares, run
    its entry point, read the symbol everything routes through, run the tests, and find who to
@@ -47,16 +49,16 @@ absence never reads as an oversight:
    instead of copying detail that could drift. A step with no evidence is dropped, not written
    as "none found". The section says up front that it was assembled from the graph, because
    nobody wrote this procedure and a reader who thinks otherwise will trust it too far.
-3. **Architecture** -- the repository's modules and their sizes.
-4. **Ownership and activity** -- who has been working here lately, as a share rather than a commit
+3. **Architecture**: the repository's modules and their sizes.
+4. **Ownership and activity**: who has been working here lately, as a share instead of a commit
    scoreboard. Pseudonymised when `[kb] anonymize = "always"`, with a key made fresh for each
    `kb wiki` run: one person reads the same on every page of one run, and can read differently
    on pages from another run.
-5. **The public surface** -- the named symbols, most-referenced first, with an incoming-reference count
+5. **The public surface**: the named symbols, most-referenced first, with an incoming-reference count
    where the graph records any. The count covers every relation, so a symbol that is only declared
    in its file already has 1. It is not a caller count.
-6. **Installation and usage** -- the build and packaging files the repository has.
-7. **What this repository contains** -- languages, node kinds, and **the repositories it depends on and
+6. **Installation and usage**: the build and packaging files the repository has.
+7. **What this repository contains**: languages, node kinds, and **the repositories it depends on and
    that depend on it**. That last pair is a cross-repository answer no single-repo tool can give, and it
    is always labelled as describing the whole repository even on a module page, because it cannot be
    scoped to one.
@@ -68,19 +70,25 @@ Large repositories also get one structural page per module, under `wiki/_modules
 Passing the council is not enough, and cannot be: a council judges a page on its own terms and has
 never seen the page it would displace. Prose must also be
 
-- **accurate** -- every name it cites in backticks appears in the structural page. Sound because that
+- **accurate**: every name it cites in backticks appears in the structural page. Sound because that
   page is the prompt, so a name that is not in it was invented rather than read; and
-- **complete** -- every section the structural page filled is addressed.
+- **complete**: every section the structural page filled is addressed.
 
 Strict on purpose. A page covering four of seven sections would otherwise replace one that covered seven.
 **Expect drafts to fail this**, and expect to keep reading the structural page on some repositories
 even with a strong model configured. That is the bar working rather than the feature failing; the reason
 is printed either way.
 
-A rejected or failed generation therefore leaves the structural page exactly where it was.
+A rejected or failed generation leaves the structural page where it was.
 
 The council can be pointed at a different, usually stronger, backend than the one that drafted the page,
 which is what makes publishing from a cheap local generator safe.
+
+## Prerequisites
+
+- An indexed repo with a graph shard on disk. Run `contextlake kb index` first.
+- For prose pages, a model provider: a local Ollama, the built-in CPU model, or a hosted provider.
+  Without one, `kb wiki` writes the structural pages only. See [Model providers](model-providers.md).
 
 ## Running it
 
@@ -161,7 +169,7 @@ being a flat 15:
 
 - Up to 22,500 nodes the floor keeps it at 15, so nothing changes for small repos.
 - Past that it grows with the repo, reaching its cap of 80 at around 120,000 nodes.
-- A large repo therefore gets proportionally more grounding depth, and the prompt still costs a
+- A large repo gets proportionally more grounding depth, and the prompt still costs a
   fixed amount.
 
 Inside that sample:
@@ -205,6 +213,19 @@ always conditional, and it is not one of the named sections.
 
 For the LLM backends behind this (built-in CPU model, Ollama, OpenAI, Anthropic, or a local agent CLI),
 see [Model providers](model-providers.md).
+
+## Verification
+
+1. Read the summary line at the end of the run. It counts the pages and names the folder:
+
+   ```text
+   ✓ Wiki: N written, N rejected, N unchanged (skipped) → <store>/wiki  (--force to regenerate)
+   ```
+
+2. Open the page in `<store>/wiki`. The footer cites the commit and states the result as a
+   fact: "Grounded in N/M file-backed symbols (X%)".
+3. A page the council refuses is not written. The run prints the reasons under the page's name and
+   counts it under `rejected`.
 
 ## Why a page was rejected
 
@@ -261,7 +282,7 @@ having its repr printed into a wiki page.
 There is no separate "send the notes to the model" step, and that is deliberate: **the
 structural page IS the prompt**, so putting the notes on that page is what puts them in front
 of the model on the prose path. One insertion point, both paths, and the replacement gate keeps
-working -- a name the notes introduce becomes a name a draft may legitimately cite.
+working: a name the notes introduce becomes a name a draft may legitimately cite.
 
 **`pages` steers, it cannot invent.** Names are matched against the modules the graph
 found; anything unmatched is dropped with a warning. A file inside a cloned repository is
@@ -303,7 +324,7 @@ Each subsystem page:
 - says plainly in its title, framing and provenance footer that it covers one module
 
 They live under `wiki/_modules/` with their own `@wiki:<repo>::<module>` partition. A
-natural-language question can therefore land on a subsystem's own explanation, cited back to
+natural-language question can land on a subsystem's own explanation, cited back to
 that page.
 
 Generation is capped at **20 subsystem pages per run**, so one `wiki` call on a large repo
@@ -415,7 +436,7 @@ footer names the commit. Add `--llm` and the same tab shows prose sections on to
 
 With `contextlake kb dashboard --serve --allow-mutations`, both the per-repo Wiki tab and the fleet-wide
 Settings tab also carry a **Regenerate** button that runs this same command from the browser, in the
-background, see [The dashboard → Mutating routes](using-the-dashboard.md#11-mutating-routes).
+background, see [The dashboard → Write actions you can turn on](using-the-dashboard.md#write-actions-you-can-turn-on).
 
 ## Recorded decisions
 
@@ -427,5 +448,5 @@ No `enrich`/`connect` step needed, these are picked up automatically whenever th
 ## See also
 
 - [Model providers](model-providers.md)
-- [Connect and enrich](connecting-and-enriching.md)
-- [The dashboard](using-the-dashboard.md)
+- [Connecting and enriching](connecting-and-enriching.md)
+- [Using the dashboard](using-the-dashboard.md)

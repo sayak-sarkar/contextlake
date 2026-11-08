@@ -1,4 +1,6 @@
-# Generate documentation
+# Generating documentation
+
+For engineers who want API reference and design notes built from the graph, with no model.
 
 `contextlake kb docs` writes documentation from the graph. Nothing is inferred, and every
 statement traces to an edge that a parser recorded. No model is involved by default; `--llm`

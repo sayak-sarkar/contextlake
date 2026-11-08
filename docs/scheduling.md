@@ -1,5 +1,7 @@
 # Scheduling runs
 
+For operators who run mirror syncs and indexing on a schedule.
+
 `contextlake schedule` measures how long a run takes and how often your repositories change,
 works out an interval from those two numbers, and installs a background job that keeps the
 mirror and the knowledge layer current on its own. It runs on the core tier, so it works even
@@ -537,7 +539,7 @@ measured history, and reports every way they disagree:
 
 ## See also
 
-- [Bootstrap and keep it fresh](keeping-it-fresh.md), the command the default job runs
+- [Keeping it fresh](keeping-it-fresh.md), the command the default job runs
 - [Configuration](configuration.md), the full settings reference
 - [Command reference](cli-reference.md), every `schedule` flag
-- [Reading the console output](console-output.md), exit codes and log formats
+- [Console output](console-output.md), exit codes and log formats
