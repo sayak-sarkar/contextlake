@@ -154,7 +154,7 @@ PAGES = [
      "pebble-doc.png",
      [("generating-documentation.html", "Generating documentation"), ("generating-the-wiki.html", "Generating the wiki")]),
     ("model-providers.html", "docs/model-providers.md", "Model providers", "Model providers",
-     "Reference", "The pluggable embeddings and wiki backends: auto, built-in "
+     "Build your knowledge base", "The pluggable embeddings and wiki backends: auto, built-in "
      "CPU, Ollama, OpenAI, Anthropic, and agent-CLI, with data-sharing posture and setup.",
      "pebble-doc.png",
      [("generating-the-wiki.html", "Generating the wiki"), ("installing.html", "Installing and upgrading")]),
@@ -169,7 +169,7 @@ PAGES = [
      "entry that keeps it current on its own, set/reset/unset, ad-hoc jobs, and the interval "
      "formula.",
      "pebble-doc.png",
-     [("keeping-it-fresh.html", "Bootstrap and keep it fresh"), ("configuration.html", "Configuration")]),
+     [("keeping-it-fresh.html", "Keeping it fresh"), ("configuration.html", "Configuration")]),
     ("knowledge-layer.html", "docs/knowledge-layer.md", "The knowledge layer", "The knowledge layer",
      "Build your knowledge base", "Turn the mirror into a queryable graph with search, a wiki, "
      "and connectors.",
@@ -281,7 +281,7 @@ TO_PAGE = {src: out for out, src, *_ in PAGES}
 TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "LICENSE"]
 
 # Sidebar navigation, organized into labeled bands (ordered). Every PAGES `out` appears in
-# exactly one band; the band heading reuses the existing `.side h2` styling.
+# exactly one band; the band label uses the `.side .side-title` styling.
 #
 # The bands are DEPTH bands, read top to bottom: understand it, install it, build the knowledge
 # base, use what you built, keep it running, look a detail up. A stakeholder can stop after the
@@ -294,19 +294,19 @@ TO_GH = ["docs/releasing.md", "ROADMAP.md", "CONTRIBUTING.md", "BRANDING.md", "L
 # the hero and the sidebar can never tell a reader two different things about where they are.
 NAV_GROUPS = [
     ("Understand it", ["docs.html", "explained.html", "benchmarks.html"]),
-    ("Get started", ["installing.html", "quickstart.html", "configuration.html"]),
+    ("Get started", ["quickstart.html", "installing.html", "configuration.html"]),
     ("Build your knowledge base", ["knowledge-layer.html", "mirroring-repositories.html", "indexing-the-code-graph.html",
                                    "code-graph-model.html",
                                    "connecting-and-enriching.html", "document-sources.html",
                                    "searching-semantically.html", "embedding-reference.html",
+                                   "model-providers.html",
                                    "generating-the-wiki.html", "generating-documentation.html",
                                    "generated-docs-reference.html"]),
     ("Use it", ["asking-the-graph.html", "serving-over-mcp.html", "mcp-transports.html",
                 "using-the-dashboard.html", "visualizing-the-graph.html"]),
     ("Operate it", ["keeping-it-fresh.html", "scheduling.html", "console-output.html",
                     "troubleshooting.html"]),
-    ("Reference", ["internals.html", "cli-reference.html", "model-providers.html",
-                   "changelog.html"]),
+    ("Reference", ["internals.html", "cli-reference.html", "changelog.html"]),
     ("Project", ["style-guide.html", "style-guide-voice.html", "style-guide-structure.html",
                  "style-guide-formatting.html", "style-guide-reference.html", "brand.html",
                  "adding-a-language.html"]),
@@ -355,6 +355,11 @@ for _p in PAGES:
     if _p[4] != GROUP_OF[_p[0]]:
         raise SystemExit(f"build_docs: {_p[0]} eyebrow {_p[4]!r} is not its band "
                          f"{GROUP_OF[_p[0]]!r}")
+    # See also links use the sidebar title of their target, so one page has one name
+    for _href, _label in _p[7]:
+        if _label != TITLES[_href]:
+            raise SystemExit(f"build_docs: {_p[0]} links {_href} as {_label!r}, "
+                             f"but its sidebar title is {TITLES[_href]!r}")
 
 GLYPH = '<img class="glyph" src="icon-64.png" width="28" height="28" alt="" aria-hidden="true">'
 GH_MARK = ('<svg class="lmark" viewBox="0 0 24 24" fill="currentColor" width="15" height="15" '
@@ -539,6 +544,23 @@ def mark_external(html: str) -> str:
     return re.sub(r"(?s)<a\b([^>]*)>(.*?)</a>", repl, html)
 
 
+_PEBBLE_TIP = re.compile(
+    r"(?s)<blockquote>\s*<p><strong>Pebble(?:'|&#39;|\u2019)s tip:</strong>\s*(.*?)</blockquote>")
+
+
+def render_pebble_tips(html: str) -> str:
+    """A blockquote whose first line starts with **Pebble's tip:** becomes the tip box:
+    <aside class="pebble-tip" role="note"> with the label "Pebble's tip" and a small decorative
+    Pebble. Pebble speaks only here (owner decision 35). Any other blockquote is untouched."""
+    def repl(m):
+        return ('<aside class="pebble-tip" role="note">'
+                '<img class="pebble-tip-icon" src="img/pebble-tip.png" alt="" aria-hidden="true" '
+                'width="56" height="49" loading="lazy">'
+                '<div class="pebble-tip-body"><p class="pebble-tip-label">Pebble\'s tip</p>'
+                f'<p>{m.group(1)}</div></aside>')
+    return _PEBBLE_TIP.sub(repl, html)
+
+
 def strip_first_h1(html: str) -> str:
     """Remove the first <h1>…</h1> (lifted into the hero), wherever it sits."""
     return re.sub(r"<h1[^>]*>.*?</h1>", "", html, count=1, flags=re.S)
@@ -553,15 +575,16 @@ def strip_readme_frontmatter(html: str) -> str:
 
 def sidebar(active: str) -> str:
     # home is reached via the clickable wordmark in the header. Nav is organized into
-    # labeled groups (NAV_GROUPS); each group heading reuses the `.side h2` styling.
+    # labeled groups (NAV_GROUPS); each group label uses the `.side .side-title` styling.
     blocks = []
     for group, outs in NAV_GROUPS:
         links = []
         for out in outs:
-            cls = ' class="active"' if out == active else ""
+            cls = ' class="active" aria-current="page"' if out == active else ""
             links.append(f'<a href="{linkify(out)}"{cls}>{TITLES[out]}</a>')
-        blocks.append(f'<h2>{group}</h2><nav aria-label="{group}">'
-                      + "".join(links) + "</nav>")
+        gid = "side-" + re.sub(r"[^a-z0-9]+", "-", group.lower()).strip("-")
+        blocks.append(f'<details class="side-group" open><summary class="side-title" id="{gid}">{group}</summary>'
+                      f'<nav aria-labelledby="{gid}">' + "".join(links) + "</nav></details>")
     ext = f'<div class="ext"><div class="social-row">{GH_BTN}{PYPI_BTN}</div></div>'
     # On mobile the whole nav is collapsed behind a disclosure toggle so readers land on
     # the content, not a wall of links; on desktop the toggle is hidden and the body shows.
@@ -579,7 +602,16 @@ def sidebar(active: str) -> str:
     return f'<aside class="side">{toggle}{body}</aside>'
 
 
+def subtitle_html(subtitle: str) -> str:
+    """Hero subtitle: backtick spans become <code>. A backtick left over means an unpaired span."""
+    out = re.sub(r"`([^`]+)`", r"<code>\1</code>", subtitle)
+    if "`" in out:
+        raise SystemExit(f"build_docs: unpaired backtick in subtitle: {subtitle!r}")
+    return out
+
+
 def hero(title: str, eyebrow: str, subtitle: str, pebble: str, kind: str = "") -> str:
+    subtitle = subtitle_html(subtitle)
     attr = f' data-kind="{kind}"' if kind else ""
     return (f'<header class="doc-hero"{attr}>'
             f'<div class="doc-hero-text">'
@@ -588,7 +620,7 @@ def hero(title: str, eyebrow: str, subtitle: str, pebble: str, kind: str = "") -
             f'<p class="doc-sub">{subtitle}</p>'
             f'</div>'
             f'<img class="doc-pebble" src="{pebble}" alt="" aria-hidden="true" '
-            f'width="120" height="120" loading="lazy">'
+            f'width="104" height="112" fetchpriority="high">'
             f'</header>')
 
 
@@ -612,6 +644,16 @@ def toc_rail(toc_html: str) -> str:
     inner = re.sub(r'^\s*<div class="toc">|</div>\s*$', "", toc_html.strip())
     return (f'<aside class="toc-rail"><nav aria-label="On this page">'
             f'<p class="toc-title">On this page</p>{inner}</nav></aside>')
+
+
+def toc_inline(toc_html: str) -> str:
+    """A collapsed 'On this page' disclosure for widths where the right rail is hidden
+    (docs.css shows it only at 1080px and below). Same links as the rail."""
+    if not toc_html or "<ul" not in toc_html:
+        return ""
+    inner = re.sub(r'^\s*<div class="toc">|</div>\s*$', "", toc_html.strip())
+    return (f'<details class="toc-inline"><summary>On this page</summary>'
+            f'<nav aria-label="On this page (inline)">{inner}</nav></details>')
 
 
 # Site-wide theme: a no-flash init (runs in <head>) + a toggle button + its wiring. The same
@@ -665,6 +707,10 @@ tabs.forEach(function(t,i){t.hidden=i!==0;});strip.querySelector(".tab-btn").set
 # Mobile-only sidebar disclosure: the toggle button flips .side.open and its aria-expanded.
 # It closes when a nav link is chosen (navigation follows anyway) so the menu never lingers.
 SIDE_JS = r"""<script>(function(){var b=document.getElementById("side-toggle");var s=b&&b.closest(".side");if(!s)return;
+var mq=matchMedia("(max-width:860px)"),gs=s.querySelectorAll("details.side-group");
+function fold(){gs.forEach(function(d){d.open=mq.matches?!!d.querySelector("a.active"):true;d.firstElementChild.tabIndex=mq.matches?0:-1;});}
+gs.forEach(function(d){d.firstElementChild.addEventListener("click",function(e){if(!mq.matches)e.preventDefault();});});
+fold();if(mq.addEventListener)mq.addEventListener("change",fold);
 b.addEventListener("click",function(){var open=s.classList.toggle("open");b.setAttribute("aria-expanded",open?"true":"false");});
 s.querySelectorAll(".side-body a").forEach(function(a){a.addEventListener("click",function(){s.classList.remove("open");b.setAttribute("aria-expanded","false");});});})();</script>"""
 
@@ -861,6 +907,7 @@ def shell(meta, body, toc_html) -> str:
     # with nothing to swap. Requiring the opening tag too costs nothing and removes the
     # question. A prose page that names an attribute is not a page that has one.
     EMBED = EMBED_JS if '<img class="shot"' in body and "data-embed=" in body else ""
+    subtitle = subtitle.replace("`", "")  # meta tags and JSON-LD are plain text; the hero renders <code>
     links = hand_links  # curated per page (see PAGES); validated at import against _VALID_OUT
     url = f"{BASE}{linkify(out)}"
     jsonld = docs_jsonld(nav_title, subtitle, url, git_date(src))
@@ -901,8 +948,13 @@ def shell(meta, body, toc_html) -> str:
 <a class="skip" href="#doc">Skip to content</a>
 <header><div class="nav">
   <a class="brand" href="./" aria-label="contextlake home">{GLYPH}contextlake</a>
+  <nav class="nav-links" aria-label="Primary">
+    <a class="navlink" href="{linkify('docs.html')}">Docs</a>
+    <a class="navlink" href="{linkify('quickstart.html')}">Quickstart</a>
+    <a class="navlink" href="{linkify('changelog.html')}">Changelog</a>
+  </nav>
   <span class="spacer"></span>
-  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search the docs">
+  <button class="cmdk-trigger" id="cmdk-open" type="button" aria-haspopup="dialog" aria-label="Search docs">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
     <span class="lbl">Search docs</span><kbd class="cmdk-kbd" id="cmdk-hint">/</kbd>
   </button>
@@ -912,7 +964,8 @@ def shell(meta, body, toc_html) -> str:
   {sidebar(out)}
   <main class="prose" id="doc">
     {breadcrumbs(out)}
-    {hero(h_title, eyebrow, subtitle, pebble, GROUP_KIND.get(GROUP_OF.get(out), ""))}
+    {hero(h_title, eyebrow, SUBTITLE_OF[out], pebble, GROUP_KIND.get(GROUP_OF.get(out), ""))}
+    {toc_inline(toc_html)}
     {body}
     {next_steps(links)}
   </main>
@@ -946,12 +999,11 @@ def make404():
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lost in the fog · contextlake</title>
 <meta name="robots" content="noindex">
-<meta name="description" content="That page drifted off into the mist. Pebble will guide you back to contextlake.">
+<meta name="description" content="That page drifted off into the mist. Head back to the contextlake home page or read the docs.">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#0E2A33">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts.css">
 <style>
   :root{ --deepwater:#0E2A33; --abyss:#081a20; --lake:#137A8B; --current:#2BB3A3; --mist:#EAF4F4; }
   *{box-sizing:border-box}
@@ -999,6 +1051,14 @@ def make404():
   .btn.ghost:hover{border-color:var(--current);background:rgba(234,244,244,.12);transform:translateY(-1px)}
   :focus-visible{outline:none;box-shadow:0 0 0 2px var(--abyss),0 0 0 4px var(--current);border-radius:12px}
 
+  /* the one place Pebble speaks (owner decision 35): same box as the docs pages */
+  .pebble-tip{display:flex;align-items:flex-start;gap:12px;text-align:left;max-width:420px;margin:28px auto 0;
+    padding:12px 16px 12px 12px;background:rgba(8,26,32,.66);border:1px solid rgba(234,244,244,.24);
+    border-left:3px solid var(--current);border-radius:0 12px 12px 0;text-shadow:none}
+  .pebble-tip img{width:56px;height:auto;flex:none;margin-top:2px}
+  .pebble-tip p{margin:0;font-size:14.5px;line-height:1.5;color:#d7e9ec}
+  .pebble-tip .pebble-tip-label{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:14px;color:#fff;margin-bottom:3px}
+
   .home{position:absolute;top:22px;left:24px;z-index:3;display:inline-flex;align-items:center;gap:9px;
     color:var(--mist);text-decoration:none;font-family:"Space Grotesk",sans-serif;font-weight:600;
     font-size:16px;opacity:.92;text-shadow:0 2px 16px rgba(0,0,0,.5)}
@@ -1016,12 +1076,16 @@ def make404():
   <div class="content">
     <p class="eyebrow">404 · off the map</p>
     <h1>Lost in the fog</h1>
-    <p class="sub">This page drifted off into the mist. <b>Pebble</b> can't find it
-      down here either, but the way back to shore is just a click away.</p>
+    <p class="sub">This page drifted off into the mist. The way back to shore is one click away.</p>
     <div class="actions">
       <a class="btn primary" href="./">Back to shore</a>
       <a class="btn ghost" href="docs">Read the docs</a>
     </div>
+    <aside class="pebble-tip" role="note">
+      <img src="img/pebble-tip.png" width="56" height="49" alt="" aria-hidden="true">
+      <div><p class="pebble-tip-label">Pebble's tip</p>
+      <p>The docs sidebar groups every page by task, from Get started to Reference.</p></div>
+    </aside>
   </div>
 </main>
 </body>
@@ -1133,7 +1197,7 @@ def main():
         out, src = meta[0], meta[1]
         md.reset()
         md_text = convert_github_alerts(de_emdash((REPO / src).read_text(encoding="utf-8")))
-        html = localise_images(theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text))))
+        html = render_pebble_tips(localise_images(theme_swap_dashboard_imgs(rewrite_links(md.convert(md_text)))))
         html = strip_readme_frontmatter(html) if out == "docs.html" else strip_first_h1(html)
         # the rendered page marks outbound links (↗ + new tab); the search index is built from
         # `html` (pre-mark) so the ↗ glyph never leaks into snippets.

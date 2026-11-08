@@ -127,7 +127,8 @@ git -C "$WT" add -A
 if git -C "$WT" diff --cached --quiet; then
   echo "==> no changes to deploy"
 else
-  git -C "$WT" commit -q -m "site: deploy"
+  # gh-pages has no .pre-commit-config.yaml, and the repo hook would fail the commit without this
+  PRE_COMMIT_ALLOW_NO_CONFIG=1 git -C "$WT" commit -q -m "site: deploy"
   git -C "$WT" push origin gh-pages
   echo "==> deployed to gh-pages"
 fi
