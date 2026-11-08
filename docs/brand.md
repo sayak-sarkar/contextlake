@@ -1,11 +1,13 @@
 # Brand overview
 
+**Who this is for:** designers, writers and contributors who make anything that carries the contextlake name.
+
 contextlake's brand in one page: who it is, how it sounds, and the marks and colors that carry it. This is
 the friendly tour. The full decision-grade spec, every hex, ratio, and construction rule, lives in
 [BRANDING.md](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md).
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/mark.png" alt="The contextlake mark: Pebble, a painterly warm-brown otter, cradling a glowing teal context-pebble." width="160">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/branding/mark.png" alt="The contextlake mark: Pebble, a dark blue-grey river otter, cradling a glowing teal context-pebble." width="160">
 </p>
 
 ## What contextlake is
@@ -76,5 +78,5 @@ rules, see the full [brand guidelines spec](https://github.com/sayak-sarkar/cont
 
 ## See also
 
-- [Documentation style guide](style-guide.md)
+- [Writing style](style-guide.md)
 - [The full brand guidelines spec](https://github.com/sayak-sarkar/contextlake/blob/main/BRANDING.md)

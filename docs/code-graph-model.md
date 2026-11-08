@@ -5,10 +5,20 @@ This is the vocabulary the graph is queried in, so read it when a query returns 
 need to know whether the thing you asked about is modelled at all.
 
 After the general code model and its language table, eleven sections cover the sources the
-indexer reads beyond ordinary program text: Terraform, SQL DDL, XML Schema, XSLT, embedded SQL,
-decision records, entity state machines, intra-repo dataflow, constants, web topology and
-manifests. Each names what it extracts and, where the extraction is inferred rather than
-declared, says so.
+indexer reads beyond ordinary program text. Each names what it extracts and, where the
+extraction is inferred and not declared, says so.
+
+- Terraform (infrastructure as code), in [Infrastructure: Terraform / HCL](#infrastructure-terraform-hcl).
+- SQL DDL (table and schema definitions), in [Databases: SQL DDL](#databases-sql-ddl).
+- XML Schema (data contracts for XML), in [Data contracts: XML Schema](#data-contracts-xml-schema).
+- XSLT (a language that transforms XML), in [Transformations: XSLT](#transformations-xslt).
+- Embedded SQL (SQL written inside Pro\*C files), in [Embedded SQL: Pro\*C](#embedded-sql-proc).
+- Decision records (architecture decision records, ADRs), in [Architecture decisions (ADRs)](#architecture-decisions-adrs).
+- Entity state machines (status fields that change), in [Entity state machines](#entity-state-machines).
+- Intra-repo dataflow (code that reads or writes a table), in [Intra-repo dataflow](#intra-repo-dataflow-reads-and-writes).
+- Constants (a value and every place it is read), in [Constants](#constants-their-value-and-every-place-it-is-read).
+- Web topology (endpoints and routes), in [Web topology](#web-topology-endpoints-and-routes).
+- Manifests (package files that name dependencies), in [Manifests and cross-repo dependencies](#manifests-and-cross-repo-dependencies).
 
 ## What the graph captures
 
@@ -97,7 +107,7 @@ commands that prove a new grammar works.
 #### Same name, different block
 
 Go, Rust and PHP put a symbol's block in its qualified name. Two symbols of one name in
-different blocks are therefore two nodes, and each keeps the calls from its own body. A call to
+different blocks are two nodes, and each keeps the calls from its own body. A call to
 their shared name gets an ambiguous edge to each of them, as it does for same-named functions in
 two files. The generated API reference shows the name in each heading, such as `Repo.Close`.
 
@@ -153,7 +163,7 @@ example `environments/prod` and `environments/staging`) surfaces as an `AMBIGUOU
 resolution is a future refinement. Render it with `contextlake kb graph --repo <repo> --format
 deploymentdiagram` (a Mermaid flowchart grouped by inferred category: network/compute/storage/
 database/security/other/module, where `other` catches any resource type none of the keyword lists
-claims), see [Visualize](visualizing-the-graph.md).
+claims), see [Visualizing the graph](visualizing-the-graph.md).
 
 ### Databases: SQL DDL
 
@@ -163,7 +173,7 @@ semantically searchable.
 
 It uses a regex DDL extractor (the fleet's T-SQL/PL-SQL defeats a tree-sitter AST), so it targets the
 high-value defs and FK references and is a **deliberate undercount**. Render it with
-`contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualize](visualizing-the-graph.md).
+`contextlake kb graph --repo <repo> --format erdiagram` (a Mermaid ER diagram), see [Visualizing the graph](visualizing-the-graph.md).
 
 **Measured, not asserted:** `tests/kb/fixtures/sql/` is a small, synthetic, hand-labelled
 orders/customers/inventory corpus. It has a checked ground truth of every FK a human reading the DDL
@@ -179,7 +189,7 @@ Two documented gap classes account for the four missed edges, both by design, no
 
 - A **self-referencing FK** (`referred_by`/`parent_category_id`-style hierarchies) is dropped
   because the extractor excludes `target == name`.
-- An FK **attached via a separate `ALTER TABLE ... ADD CONSTRAINT`** statement is never captured,
+- An FK **attached with a separate `ALTER TABLE ... ADD CONSTRAINT`** statement is never captured,
   because the scope tracker only scans `REFERENCES` inside a `CREATE TABLE`'s own text span.
 
 Precision was 0.90 on this corpus until the extractor learned to blank out `--` and `/* */` comments
@@ -228,7 +238,7 @@ Three deliberate limits:
   across 660 repositories, 1,023 `.config` files were contributing nothing while being exactly the
   files "where is this setting defined" is asked about.
 - **`.resx`, project files and `.svg` are excluded on purpose.** `.resx` is localisation, and at
-  roughly 22.9 settings per file across 3,963 files it would add about 91,000 nodes fleet-wide for
+  22.9 settings per file across 3,963 files it would add about 91,000 nodes fleet-wide for
   translated labels nobody asks that question about. `.csproj`, `.vbproj` and `.nuspec` are build
   definitions, which the manifest extractor already owns along with the `depends_on` relation that
   belongs between a build file and a package. `.svg` is XML-shaped and is graphics.
@@ -407,7 +417,7 @@ so read the list as what is matched:
   `@Controller` / `@Get()` decorator routing matches nothing here.
 - **C#**: minimal-API `MapGet`/`MapPost`/… **and** attribute routing, `[HttpGet("...")]` and
   `[Route("...")]`, so a conventional MVC or Web API controller is picked up too.
-- Next.js App Router `route.ts` handlers, via the file convention.
+- Next.js App Router `route.ts` handlers, found by the file convention.
 
 Every one of these edges is `INFERRED` by construction, a likely undercount rather than an assertion.
 

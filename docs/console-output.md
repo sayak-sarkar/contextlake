@@ -1,4 +1,6 @@
-# Reading the console output
+# Console output
+
+**Who this is for:** anyone reading what a contextlake command printed and wanting to know what a line means.
 
 A `bootstrap` (or a standalone `index` / `embed` / `wiki`, and the mirror-tier `clone` / `update` /
 `branches`) prints progress as it goes. Most lines are self-explanatory; a few are worth decoding.
@@ -7,7 +9,9 @@ A `bootstrap` (or a standalone `index` / `embed` / `wiki`, and the mirror-tier `
 
 Every long-running command uses one shared renderer, so the bar looks the same everywhere:
 
-    [█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min
+```text
+[█░░░░░░░░░░░░░] 42/678 (6%) · 12:30 elapsed · ~3:09:17 left · 3.4/min
+```
 
 That is the bar, done out of total, percent, elapsed time, estimated time left, and rate per
 minute.
@@ -71,7 +75,7 @@ wrong, then say what to do about it.
 
 A mistyped command suggests the closest real one instead of dumping the full command list:
 
-```
+```text
 $ contextlake fetc
 ✗ Unknown command: 'fetc'
 
@@ -92,7 +96,7 @@ prefix is treated the same as an unknown flag, so a typo fails loudly instead of
 A genuine character-level typo of a real flag on the command you invoked (a transposition, a slipped
 letter, not a shortened prefix) does get a suggestion, scoped to that command's own flags:
 
-```
+```text
 $ contextlake kb index --worksapce .
 ✗ Unknown flag: '--worksapce'
 
@@ -102,7 +106,7 @@ Did you mean: --workspace?
 A flag that's valid, just not on the command you ran, says so and names where it does belong, rather than
 reporting it as unrecognized:
 
-```
+```text
 $ contextlake bootstrap --local
 ✗ '--local' isn't a flag on 'bootstrap'
 
@@ -115,7 +119,7 @@ A value-taking flag immediately followed by another recognized flag (its value w
 flag lands where the value should be) names the real problem instead of arguing you forgot a value
 entirely:
 
-```
+```text
 $ contextlake kb dashboard --serve --workspace --open
 ✗ '--workspace' needs a value, but the next token ('--open') is itself a recognized flag
 
@@ -124,8 +128,8 @@ Put the value right after --workspace, e.g. '--workspace <value> --open'.
 
 ## Machine-readable logs: `--log-format json`
 
-Everything above describes output composed for a person. When the reader is a log collector instead --
-the systemd timer in `examples/`, a cron wrapper, CI -- `--log-format json` prints one JSON object per
+Everything above describes output composed for a person. When the reader is a log collector instead
+(the systemd timer in `examples/`, a cron wrapper, CI), `--log-format json` prints one JSON object per
 line and nothing else:
 
 ```json
@@ -154,7 +158,7 @@ paths, `$HOME`, the group/org name, a self-hosted forge hostname and repository 
 placeholders, so it can be attached to a bug report as-is. The filesystem root (`/`) is never replaced,
 so a `$HOME` or workspace of `/` leaves the log readable.
 
-```
+```text
 [2026-08-04 05:48:49] Working directory: <workspace>
 [2026-08-04 05:48:49] Gitlab group: <group>
 [2026-08-04 05:48:49] Missing repositories:
@@ -166,7 +170,7 @@ correctly after scrubbing, and a file path *inside* a repo keeps its tail (`<wor
 src/main.py:42`) because which file broke is the useful half. This is obfuscation for sharing, not a
 cryptographic guarantee: a short, guessable repository name can be confirmed by anyone who guesses it.
 
-The console is left alone by default -- you need the real paths to act on what you are reading.
+The console is left alone by default, because you need the real paths to act on what you are reading.
 `--redact` scrubs the console too; `--no-redact` scrubs neither.
 
 ## Metrics for an unattended run: `--metrics-file`
@@ -175,7 +179,7 @@ The console is left alone by default -- you need the real paths to act on what y
 output after the run, so the shipped systemd timer is monitorable with no exporter process of its own.
 Point node_exporter's `--collector.textfile.directory` at the file's directory and name the file `.prom`:
 
-```
+```text
 contextlake_run_duration_seconds{command="mirror sync"} 42.318
 contextlake_run_exit_code{command="mirror sync"} 0
 contextlake_repos{command="mirror sync",status="ok"} 480
@@ -346,6 +350,6 @@ reproduce the failure under a debugger.
 
 ## See also
 
-- [Bootstrap and keep it fresh](keeping-it-fresh.md)
-- [Index the code graph](indexing-the-code-graph.md)
-- [`contextlake` command reference](cli-reference.md)
+- [Keeping it fresh](keeping-it-fresh.md)
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Command reference](cli-reference.md)

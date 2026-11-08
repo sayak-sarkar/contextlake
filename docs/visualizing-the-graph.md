@@ -1,4 +1,6 @@
-# Visualize the graph
+# Visualizing the graph
+
+**Who this is for:** anyone who wants to see the graph, share a diagram or export it to another tool.
 
 `contextlake kb graph` draws a **bounded** slice of the graph. The whole thing (hundreds of thousands of
 nodes) is too large to render, so every view is scoped from a seed and capped:
@@ -10,6 +12,8 @@ contextlake kb graph --node <id> --hops 3              # expand around an exact 
 contextlake kb graph --search "sensor" --open          # seed from a full-text search
 contextlake kb graph --repo acme/forecast-api          # one repo's internal code graph
 ```
+
+## How a view is built
 
 ```mermaid
 flowchart LR
@@ -35,6 +39,8 @@ Which seed you pick decides which flags apply at all: only a seeded view walks o
 applies that rule in the other direction: it needs exactly one seed, so it is the one format `--repo`
 and `--overview` cannot produce.
 
+## What a repo view shows
+
 `contextlake kb graph --repo <repo>` renders one repo's internal code graph to a single self-contained HTML
 page: nodes coloured by kind and sized by degree, edges by relation, with an in-page layout switcher,
 search, and a minimap; it opens straight from `file://`:
@@ -43,14 +49,17 @@ search, and a minimap; it opens straight from `file://`:
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/cli/graph-repo.png" alt="The offline HTML code graph for one repository, acme/station-registry from the demo fleet. Eight nodes and five edges: the classes StationRegistry and StationEnrollment, the functions verify_station and normalize_station_id, the file manifest.py, the packages acme-stations and acme-shared, and the repo itself, coloured by kind and linked by calls, depends_on and publishes edges. The sidebar lists the node and relationship legend and a layout switcher, with a search box in the top bar and a minimap in the bottom corner." width="820">
 </p>
 
-**Pick a seed** with one of `--node`, `--name` (plus `--kind`), `--search`, `--repo` or
-`--overview`.
+## Pick a seed
+
+Use one of `--node`, `--name` (plus `--kind`), `--search`, `--repo` or `--overview`.
 
 `--limit` (default `20`) caps how many seed nodes a `--name` or `--search` match contributes,
 before the walk starts. The run logs how many matched when it trims. Use it when a name matches
 300 symbols and you want a view of the first few.
 
-**Then bound the result** with three flags.
+## Bound the result
+
+Three flags bound the result.
 
 `--max-nodes` (default 500, or 5000 on `--overview`)
 
@@ -84,6 +93,8 @@ take: a seeded view, all of them except `--max-edges`, which the seeded path nev
 accepted and then ignored; `--repo`, `--max-nodes` / `--max-edges` / `--max-fanout`;
 `--overview`, `--max-nodes` alone.
 
+### Which nodes survive a cap
+
 When a `--repo` view goes over `--max-nodes`, nodes are kept by **degree**: the
 highest-connected first, ties broken by node id. So a truncated diagram keeps the most connected
 part of the repo, not whatever sorted first.
@@ -101,6 +112,8 @@ automatically. That works recursively, to any depth, with a clickable breadcrumb
 ## Output formats
 
 Output is chosen with `--format`:
+
+### Interactive page
 
 - **`html`** (default), a single **self-contained, offline** page (cytoscape.js is inlined, so it opens
   from `file://` with no network, handy air-gapped / behind a proxy). `--open` launches the browser;
@@ -121,7 +134,9 @@ Output is chosen with `--format`:
     - For a folder an older version made, run `touch DIR/.contextlake-export` once. Other dotfiles,
       such as `.nojekyll`, are ignored. `kb dashboard --site` follows the same rule for its top
       level and for its `graph/` folder, so an older dashboard export needs the marker in both.
-- **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
+
+### Mermaid diagrams
+
 - **`mermaid`**, the relation graph, pastes into Markdown / GitHub.
 - **`classdiagram`**, a **Mermaid UML class diagram** for a repo (or a seeded slice): classes / interfaces
   / structs with their methods as members, and `inherits` edges as inheritance arrows (`<|--` extends,
@@ -144,7 +159,7 @@ Output is chosen with `--format`:
     - Multiple entities in view each get their own composite block; a single-entity view renders
       flat.
 - **`erdiagram`**, a **Mermaid ER diagram** of `table`/`view` definitions and their foreign-key
-  `references` edges, from the SQL DDL extractor (see [Index & Code Graph](indexing-the-code-graph.md)):
+  `references` edges, from the SQL DDL extractor (see [Indexing the code graph](indexing-the-code-graph.md)):
   `contextlake kb graph --repo demo/app --format erdiagram`.
     - No attribute/column data (the extractor only captures `CREATE TABLE`/`VIEW` names and FK
       targets), so entities render as bare boxes with relationship lines, not column lists.
@@ -155,7 +170,7 @@ Output is chosen with `--format`:
       guidance, not a bug.
 - **`deploymentdiagram`**, a **Mermaid flowchart** of Terraform/HCL `resource`/`data`/`module`
   definitions grouped by an inferred category, from the HCL extractor (see
-  [Index & Code Graph](indexing-the-code-graph.md)):
+  [Indexing the code graph](indexing-the-code-graph.md)):
   `contextlake kb graph --repo demo/app --format deploymentdiagram`.
     - The categories are network/compute/storage/database/security/other/module. Category is a
       keyword heuristic over the resource type prefix (for example `aws_security_group.web` ->
@@ -166,6 +181,10 @@ Output is chosen with `--format`:
       wrapper).
     - **Terraform-only** (HCL is the only IaC language the extractor parses): a repo with no `.tf`
       files renders an empty diagram with guidance, not a bug.
+
+### Formats for other tools
+
+- **`dot`**, Graphviz (`contextlake kb graph ... --format dot | dot -Tsvg > g.svg`).
 - **`graphml`**, the standard [GraphML](http://graphml.graphdrawing.org/) interchange format for
   [Gephi](https://gephi.org/)/[yEd](https://www.yworks.com/products/yed): `contextlake kb graph --repo
   demo/app --format graphml --output g.graphml`. Nodes/edges carry real attributes (kind, name, repo,
@@ -178,6 +197,8 @@ Output is chosen with `--format`:
   quoting handles arbitrary values without a lossy sanitization pass into PascalCase/UPPER_SNAKE).
 - **`json`**, the raw `{nodes, edges, meta}` for cytoscape / custom tooling (Gephi/yEd users want
   `--format graphml` instead, real typed attributes, not a bespoke shape to parse).
+
+### Explore a large graph live
 
 To explore a large graph interactively, run `contextlake kb graph --overview --serve`. It starts
 a local web UI. Clicking a node **expands** it, fetching its neighbours on demand, so you can
@@ -329,6 +350,6 @@ offline with no network calls.</p>
 
 ## See also
 
-- [The dashboard](using-the-dashboard.md)
-- [Index the code graph](indexing-the-code-graph.md)
-- [Serve it to your editor](serving-over-mcp.md)
+- [Using the dashboard](using-the-dashboard.md)
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Serving over MCP](serving-over-mcp.md)

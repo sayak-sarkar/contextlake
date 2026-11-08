@@ -1,7 +1,13 @@
 # Model providers
 
+**Who this is for:** operators who pick where the embedding and wiki models run.
+
 Both the embeddings and wiki tiers are pluggable and take a `provider`, defaulting to **`"auto"`**. Pick
-by what may leave your machine and what hardware you have.
+by what may leave your machine and what hardware you have. This page answers "where does the model
+run, and what leaves my machine?". To see which model makes the vectors and what gets one, see
+[Embeddings and models](embedding-reference.md).
+
+## Choosing a provider
 
 ```mermaid
 flowchart LR
@@ -26,9 +32,13 @@ flowchart LR
 `auto`, the default, is the one value that picks for you: it resolves to a local Ollama that already has
 the model pulled, and otherwise to the built-in CPU model.
 
+## How `auto` resolves
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/provider-resolution.png" alt="How provider=auto resolves: if a local Ollama is reachable AND already has the target model pulled, use it; else if the built-in extra is installed, use the built-in CPU model; else skip the tier." width="720">
 </p>
+
+## The providers
 
 - **`auto`** (default), resolves to a reachable local **Ollama** that already has the target model
   pulled, else the **built-in** CPU model if its extra is installed, else it skips that tier.
@@ -46,7 +56,7 @@ the model pulled, and otherwise to the built-in CPU model.
     onnxruntime and tokenizers, not the fastembed library, and the vectors are the same. Another
     fastembed model needs `pip install fastembed`.
   - *Wiki LLM*, a `Qwen2.5-Coder-0.5B-Instruct` int4 OpenVINO IR model (Apache-2.0, 349 MB)
-    via `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel on Linux with
+    through `openvino-genai`, `contextlake doctor --fix llm-local` (an ordinary wheel on Linux with
     glibc 2.28 or newer on x86-64 (2.31 on arm64), Windows x86-64 and Apple silicon Macs: no
     compiler, no custom index).
     Fast to set up, but **0.5B is a modest writer** (good for coverage, not
@@ -105,7 +115,9 @@ the model pulled, and otherwise to the built-in CPU model.
     reviews with the model that wrote the page. Set it in `~/.contextlake/kb.toml` or pass
     `--config PATH` to keep it. A local reviewer such as `ollama` works from a local file.
 
-**Data-sharing posture per backend.** Pick by what may leave your machine:
+## Data sharing per backend
+
+Pick by what may leave your machine:
 
 | Backend | Data leaves the machine? | Auth |
 |---|---|---|
@@ -137,7 +149,7 @@ Unset, `review_provider` means the council reviews with the same client that gen
 which is the historical behavior. Setting it lets a cheap local generator be gated by a real model; it costs
 `pages × council_size` extra calls against that provider, so it is opt-in and never inferred from an
 API key that happens to be in your environment. See
-[Generate the wiki](generating-the-wiki.md) for the full rationale.
+[Generating the wiki](generating-the-wiki.md) for the full rationale.
 
 | provider  | example `model`                          | notes |
 |-----------|------------------------------------------|-------|
@@ -228,7 +240,7 @@ or baked into the container image). Only when there is none does it go online, a
 with `--offline`. The built-in embedder follows the same rule. Before this, every load asked
 the Hub for the latest commit, so an upstream change pulled a second copy.
 
-The runtime pulls `openvino` and `openvino-tokenizers` and nothing else -- in particular
+The runtime pulls `openvino` and `openvino-tokenizers` and nothing else. In particular it pulls
 **neither torch nor transformers**, which is why a local generative tier does not cost you a
 multi-gigabyte install. "Pre-converted" is the load-bearing part: converting a stock
 checkpoint to OpenVINO IR yourself needs `optimum-intel`, which does pull torch.
@@ -236,7 +248,7 @@ checkpoint to OpenVINO IR yourself needs `optimum-intel`, which does pull torch.
 ### Why not llama.cpp
 
 Earlier releases ran a GGUF through `llama-cpp-python`, and it needed a per-accelerator wheel
-index because upstream publishes no wheels to PyPI at all -- so a plain `pip install` compiled
+index because upstream publishes no wheels to PyPI at all, so a plain `pip install` compiled
 C++ from source and wanted `cmake` and a compiler. It also had **no wheel for CPython 3.14 on
 any x86_64 platform**, which pinned the whole project's container base image to an older
 Python.
@@ -344,6 +356,7 @@ downloads. See `examples/kb.toml.example`.
 
 ## See also
 
-- [Generate the wiki](generating-the-wiki.md)
-- [Semantic search](searching-semantically.md)
-- [Connect and enrich](connecting-and-enriching.md)
+- [Embeddings and models](embedding-reference.md)
+- [Generating the wiki](generating-the-wiki.md)
+- [Searching semantically](searching-semantically.md)
+- [Connecting and enriching](connecting-and-enriching.md)

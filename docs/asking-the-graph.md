@@ -1,4 +1,6 @@
-# Ask the graph
+# Asking the graph
+
+**Who this is for:** developers who want an answer from the terminal about where a symbol lives, what breaks if it changes, or who to ask.
 
 Three commands answer the questions the graph exists for: `kb query` finds a symbol, `kb impact`
 finds what breaks if you change it, and `kb owners` finds who to ask about it. All three print a
@@ -6,7 +8,7 @@ citation you can open, all three take `--json`, and none of them needs an editor
 
 The same three answers reach an agent over MCP as `search_code` / `semantic_search` /
 `hybrid_search`, `blast_radius`, and `who_knows`; see
-[Serve it to your editor](serving-over-mcp.md). This page is the terminal-side equivalent.
+[Serving over MCP](serving-over-mcp.md). This page is the terminal-side equivalent.
 
 ```mermaid
 flowchart LR
@@ -24,16 +26,16 @@ flowchart LR
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
 </div>
 
-The split on the left is the one worth noticing: `query` and `impact` read the store, `owners` reads
+The split on the left: `query` and `impact` read the store, `owners` reads
 git history, which is why it answers in a directory that was never indexed. Give it a repo id rather
 than a path and it does open the store, only to find the clone.
 
 ## Prerequisites
 
-- A store with an indexed repo in it: [Index the code graph](indexing-the-code-graph.md), or
+- A store with an indexed repo in it: [Indexing the code graph](indexing-the-code-graph.md), or
   `contextlake bootstrap`. `kb owners` is the exception, it reads git directly and needs neither.
 - For `--retriever semantic` or `hybrid`, a `contextlake kb embed` run as well:
-  [Semantic search](searching-semantically.md).
+  [Searching semantically](searching-semantically.md).
 
 > [!IMPORTANT]
 > Query an empty store and you get `No matches`, exit `0`, the same first line as a genuine miss.
@@ -208,7 +210,7 @@ The candidate list stops at 10 repos even when the count in the line above it is
 
 > [!WARNING]
 > A name that matches no node exactly falls back to a fuzzy search and takes the top hit, silently
-> (`resolve_target` in `src/contextlake/kb/impact.py`). A typo can therefore produce a confident
+> (`resolve_target` in `src/contextlake/kb/impact.py`). A typo can produce a confident
 > blast radius for the wrong symbol. The header line always names the node that was
 > resolved, `Impact of changing <name> (<node id>)`, so read it before trusting the list.
 
@@ -263,7 +265,7 @@ sum over their commits of (lines_changed + 1) * 0.5 ** (age_days / 180)
 - **Volume and recency both count.** The `+ 1` means a commit scores even when it changed no
   countable lines, so a prolific reviewer of small changes still ranks.
 - **Age is measured from the newest commit in the history examined, not from today.** An archived
-  repo therefore still returns a sensible ranking of who was active *within that repo's own
+  repo still returns a sensible ranking of who was active *within that repo's own
   timeline*, and the answer does not drift as time passes.
 - **`--path` moves that baseline too**, because the newest commit is recomputed over only the
   commits touching that path.
@@ -333,8 +335,8 @@ offline with no network calls.</p>
 
 ## See also
 
-- [Serve it to your editor](serving-over-mcp.md), the same answers as MCP tools
-- [Index the code graph](indexing-the-code-graph.md), what the graph contains to be asked about
-- [Semantic search](searching-semantically.md), what `--retriever semantic` needs first
-- [The dashboard](using-the-dashboard.md), the same queries in a browser
-- [Reading the console output](console-output.md), decoding a run
+- [Serving over MCP](serving-over-mcp.md), the same answers as MCP tools
+- [Indexing the code graph](indexing-the-code-graph.md), what the graph contains to be asked about
+- [Searching semantically](searching-semantically.md), what `--retriever semantic` needs first
+- [Using the dashboard](using-the-dashboard.md), the same queries in a browser
+- [Console output](console-output.md), decoding a run

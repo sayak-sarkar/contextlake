@@ -177,7 +177,7 @@ runtime and 200 development packages reads as a 15-package fleet.
 
 Repositories absent from the tables are split by **why**, and named rather than counted:
 they declare only development or opt-in dependencies (a manifest *was* read), they declare
-nothing this reads, or their shard could not be loaded -- in which case the page knows nothing
+nothing this reads, or their shard could not be loaded. In that case the page knows nothing
 about them either way and says so instead of reporting them as declaring nothing.
 
 It is written only when a run covers the whole store. `kb docs <repo>` skips it and says why: "3

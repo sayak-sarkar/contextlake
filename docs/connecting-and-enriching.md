@@ -1,4 +1,6 @@
-# Connect and enrich
+# Connecting and enriching
+
+**Who this is for:** operators who link repos to issues, docs and designs, and want grounded facts from those sources in the knowledge layer.
 
 Beyond code, contextlake links each repo to its external context (issues, docs, and designs) and can pull
 grounded facts from those sources into the knowledge layer. `connect` links repos to items; `enrich`
@@ -192,7 +194,7 @@ each of the 19 embeddable kinds would leave the ranking two or three slots to de
 
 **Prerequisites.** Two things must be true:
 
-1. The code graph is indexed, via `contextlake kb index`.
+1. The code graph is indexed with `contextlake kb index`.
 2. At least one term-searchable source is configured. That means an `mcp` source with `tool`
    and `arg_template` keys, an `atlassian` source, or an `api` source with a `search_url`
    (next section).
@@ -360,6 +362,6 @@ A source that could not be reached is not an empty answer.
 
 ## See also
 
-- [Index the code graph](indexing-the-code-graph.md)
-- [Semantic search](searching-semantically.md)
-- [Serve it to your editor](serving-over-mcp.md)
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Searching semantically](searching-semantically.md)
+- [Serving over MCP](serving-over-mcp.md)

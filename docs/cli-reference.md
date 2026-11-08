@@ -1,9 +1,11 @@
-# `contextlake` command reference
+# Command reference
 
-Every flag and every command, in one place. Each command also carries scoped help via
+**Who this is for:** anyone who runs contextlake from a terminal and needs the exact flag or command.
+
+Every flag and every command, in one place. Each command also carries scoped help through
 `contextlake <command> --help`, and each command's own page (linked below) covers it in depth.
 For what the CLI says back when a name or a flag is wrong, see
-[Reading the console output](console-output.md#when-you-mistype-a-command-or-a-flag).
+[Console output](console-output.md#when-you-mistype-a-command-or-a-flag).
 
 ## Shell completion
 
@@ -79,15 +81,17 @@ Two more look similar and are not:
 - **`--offline`** is a locality guarantee. Turn it on for a single run to prove one, or leave it
   on permanently. Its env-var form is `CONTEXTLAKE_OFFLINE=1`.
 
-`--dry-run` looks global too, and is not. It belongs to the 8 `mirror` commands, `bootstrap`,
-`doctor` and `kb forget`. Any other command refuses it with exit `2` and runs nothing, wherever the
+`--dry-run` looks global too, and is not. It belongs to 13 commands: the 8 `mirror` commands,
+`bootstrap`, `doctor`, `kb enrich`, `kb forget` and `schedule`. Any other command refuses it with exit `2` and runs nothing, wherever the
 flag is typed (`contextlake --dry-run kb index` as much as `contextlake kb index --dry-run`). The
 message names the commands that do take it.
 
 `bootstrap --dry-run` prints the stages a real run would perform and runs none of them: no mirror,
 no audit, no index, no model call, and no store, cache, metrics or history file is written (a
 `--log-file` you ask for still is). `mirror sync --dry-run` previews what the mirror stages would
-change.
+change. `kb enrich --dry-run` prints each repo's search terms and the queries it would send, and sends
+and stores nothing. `schedule install --dry-run` prints the unit or manifest it would install and the
+interval, and installs and records nothing.
 
 ### What `--offline` covers, and what it does not
 
@@ -194,7 +198,7 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
 | `kb impact` | Change-impact / blast radius: what depends on a symbol (alias `kb blast-radius`, `--json`) |
-| `kb graph` | Visualize the graph. `--format` takes 11 values: `html` (offline interactive, the default), `dot`, `json`, `graphml`, `cypher`, and the six Mermaid ones (`mermaid`, `classdiagram`, `sequencediagram`, `statediagram`, `erdiagram`, `deploymentdiagram`); or a composed namespace C4 diagram with `--c4`. All of them, with what each is for, are on [Visualize the graph](visualizing-the-graph.md) |
+| `kb graph` | Visualize the graph. `--format` takes 11 values: `html` (offline interactive, the default), `dot`, `json`, `graphml`, `cypher`, and the six Mermaid ones (`mermaid`, `classdiagram`, `sequencediagram`, `statediagram`, `erdiagram`, `deploymentdiagram`); or a composed namespace C4 diagram with `--c4`. All of them, with what each is for, are on [Visualizing the graph](visualizing-the-graph.md) |
 | `kb dashboard` | Local knowledge-system dashboard UI (`--serve`; `--sample` for a bundled demo) |
 | `kb eval` | Measure retrieval quality: precision / recall / MRR against a golden-query set (`--json`, `--verify-citations`) |
 | `kb refresh` | Report whether the graph is current; `--refresh` updates it in the background, `--hook` prints Claude Code SessionStart JSON |
@@ -274,6 +278,8 @@ that lands past the year 9999 (or, for `--since`, before the year 1) exits `2`, 
 and gives the longest allowed. Nothing is written. Use `--expires never` for a key that does
 not expire.
 
+#### Create and capture a key
+
 **The key is shown once, and only once.** It is printed to standard error at creation and
 never again. The file stores a SHA-256 digest of the key, not the key, so there is nothing
 to print later. A key nobody wrote down is rotated, never recovered:
@@ -283,13 +289,15 @@ to print later. A key nobody wrote down is rotated, never recovered:
 Three ways to capture it at creation:
 
 - Read it off the screen. This is the default.
-- `--print-key` writes the bare key to standard output for a pipe, e.g.
+- `--print-key` writes the bare key to standard output for a pipe, for example:
   `contextlake kb keys create ci --print-key | pass insert -e contextlake`. It refuses a
   terminal, because on one the key lands in the scrollback instead of a secret store.
 - `--out FILE` writes the key to a file at mode `0600`. The file is created with `O_EXCL`,
   so an existing path is refused rather than overwritten. This is the route to prefer in a
   script: it is the only one where the mode is set at creation rather than inherited from
   the caller's umask.
+
+#### Write verbs and the lock
 
 **Write verbs take turns.** `create`, `revoke`, `rotate` and `prune` each hold a lock,
 `<key file>.lock` beside the key file at mode `0600`, from reading the file until writing
@@ -304,6 +312,8 @@ nowhere else either.
 The key never reaches standard output on the default path and never reaches `--log-file`,
 which is a rotating file that outlives the process.
 
+#### Check a key
+
 **`check` reads the key from standard input only.** A key typed on a command line lands in
 shell history and shows in `ps` to every account on the machine, so
 `contextlake kb keys check <key>` is refused with exit 2. A terminal with nothing piped in
@@ -316,6 +326,8 @@ stores, not what a server would allow.
 **The checksum in a key is a typo filter, not a security control.** It catches a key
 mistyped or truncated in transit before a request is sent. It stops nobody from forging a
 key, which is the digest comparison's job.
+
+#### Limits on a key
 
 **All eight key flags are enforced, and the marker beside each value says so.** `--tools`
 and `--owners` are read on every call a networked server serves. `--rate`, `--burst` and
@@ -346,6 +358,8 @@ it, and refuse `ask` with it. There is no anonymiser on the network path in this
 so a key that asked for pseudonyms gets no names, not real ones. A wiki page lists
 the people who commit to its repository, so `get_wiki` returns a notice in place of the page
 text for those two keys. Add `--owners real` to read the pages.
+
+#### `--repos`
 
 **`--repos` limits what the key can read.** A key created `--repos 'gitlab.example.com/acme/*'`
 sees only repositories that match one of its globs. Search, graph, repo-list and stats answers
@@ -378,6 +392,8 @@ A glob is matched against the repository id, not the folder name:
 A `--repos` value that names no repository, such as `""`, `,` or a space, is refused at
 `create`: the server would read it as no limit. A key file edited by hand to hold such a value
 reads nothing.
+
+#### `--external` and `--no-external`
 
 **`--external` GRANTS access.** It is not a label. A key that has `--repos` and not
 `--external` cannot read connector content:
@@ -418,6 +434,8 @@ earlier release, a key created `--tools none --repos nothing-matches/*` was pres
 returned a result. The same key on the same server now gets an empty tool list and a
 refusal on `graph_stats`.
 
+#### Quotas
+
 **`--rate`, `--burst` and `--cost-budget` are enforced.** A key over its quota gets `429`
 with a `Retry-After` header, refused at the gate before the request reaches any tool. Values
 are validated at the flag, so a typo cannot be minted onto a key, and again when a key file
@@ -434,6 +452,8 @@ key, from `[serve]` in kb.toml, or from nowhere.
 
 Scoping is a NETWORK control. stdio serves one local user who already has the files, so
 nothing on that transport reads a key or a policy.
+
+#### `--client`
 
 **`--client` prints the config snippet for the editor that will hold the key**
 (`claude-code`, `cursor`, `vscode`, `windsurf`, `zed`). Every snippet reads the key from a
@@ -486,6 +506,8 @@ date, `never` or `-`. Read `policy`, `expires_at` and `last_used_at` instead.
 `last_used_state` is the sibling that keeps a null from meaning two things: `not-recorded`
 (no usage file), `no-rows` (a file with no call for this key) or `measured`.
 
+#### Exit codes of `kb keys`
+
 **Exit codes.**
 
 - `0` on success, including `list` on a key file that does not exist yet, and including `usage`
@@ -522,14 +544,14 @@ Four: `0` nothing failed, `1` something did, `2` the invocation was wrong, `130`
 mid-job. The long-running servers are not in that last one: `Ctrl-C` is how you are told to stop
 them, so they exit `0`, and `kb serve --transport http`/`sse` exits `143` on `SIGTERM` after
 uvicorn's graceful shutdown. The conditions behind each are on
-[Reading the console output](console-output.md#what-it-exited-with).
+[Console output](console-output.md#what-it-exited-with).
 
 ## See also
 
 - [Scheduling runs](scheduling.md), the `schedule` command in depth
-- [Ask the graph](asking-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
-- [Index the code graph](indexing-the-code-graph.md)
-- [Serve it to your editor](serving-over-mcp.md)
-- [Reading the console output](console-output.md)
-- [Install and upgrade](installing.md), the commands `--fix` runs for you, written out
+- [Asking the graph](asking-the-graph.md), `kb query`, `kb impact` and `kb owners` in depth
+- [Indexing the code graph](indexing-the-code-graph.md)
+- [Serving over MCP](serving-over-mcp.md)
+- [Console output](console-output.md)
+- [Installing and upgrading](installing.md), the commands `--fix` runs for you, written out
 - [Troubleshooting](troubleshooting.md), when one of them fails

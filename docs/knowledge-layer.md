@@ -1,4 +1,6 @@
-# Knowledge layer
+# The knowledge layer
+
+**Who this is for:** anyone deciding whether to turn their mirrored repositories into a queryable graph, and what that adds.
 
 An optional subsystem (`contextlake.kb`) turns your mirrored repositories into a queryable **knowledge
 graph** and serves it to AI agents over **MCP**, so an assistant can ask "where is `X` defined?", "who
@@ -65,13 +67,13 @@ stage by stage.
 
 ## Building it, stage by stage
 
-- **[Index the code graph](indexing-the-code-graph.md)**: parse your repos into a typed graph of files, symbols,
+- **[Indexing the code graph](indexing-the-code-graph.md)**: parse your repos into a typed graph of files, symbols,
   call/inheritance edges, infrastructure, SQL, and web topology.
-- **[Connect and enrich](connecting-and-enriching.md)**: link repos to their issues, docs, and designs, ingest
+- **[Connecting and enriching](connecting-and-enriching.md)**: link repos to their issues, docs, and designs, ingest
   external documents, and pull grounded external facts in.
-- **[Semantic search](searching-semantically.md)**: embed the graph for natural-language and hybrid retrieval,
+- **[Searching semantically](searching-semantically.md)**: embed the graph for natural-language and hybrid retrieval,
   and measure retrieval quality with `eval`.
-- **[Generate the wiki](generating-the-wiki.md)**: turn the graph into grounded, council-verified prose per repo
+- **[Generating the wiki](generating-the-wiki.md)**: turn the graph into grounded, council-verified prose per repo
   (and per namespace).
 - **[Model providers](model-providers.md)**: choose the embeddings and wiki backend (built-in CPU, Ollama,
   OpenAI, Anthropic, or an agent CLI).
@@ -79,13 +81,13 @@ stage by stage.
 
 ## Using what you built
 
-- **[Serve it to your editor](serving-over-mcp.md)**: expose the graph over MCP so agents query it directly.
-- **[The dashboard](using-the-dashboard.md)**: a local, offline-first UI over the whole knowledge system.
-- **[Visualize the graph](visualizing-the-graph.md)**: bounded interactive graph slices and the C4 diagram.
-- **[Ask the graph](asking-the-graph.md)**: query it, trace what a change would break, and find who owns it.
+- **[Serving over MCP](serving-over-mcp.md)**: expose the graph over MCP so agents query it directly.
+- **[Using the dashboard](using-the-dashboard.md)**: a local, offline-first UI over the whole knowledge system.
+- **[Visualizing the graph](visualizing-the-graph.md)**: bounded interactive graph slices and the C4 diagram.
+- **[Asking the graph](asking-the-graph.md)**: query it, trace what a change would break, and find who owns it.
 
 For the command list see the [`contextlake` command reference](cli-reference.md); to decode a run see
-[Reading the console output](console-output.md).
+[Console output](console-output.md).
 
 ## See also
 

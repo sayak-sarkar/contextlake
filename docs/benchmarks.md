@@ -1,13 +1,16 @@
-# What contextlake saves, and how to measure it
+# Benchmarks
 
-What connecting the contextlake MCP server to an AI coding tool (Claude, Devin, Copilot, Cursor,
-Windsurf …) does to token usage, where it helps most, and where it does not help at all.
+**Who this is for:** anyone who needs to judge whether contextlake will cut token use on their own repositories.
+
+This page explains what connecting the contextlake MCP server to an AI coding tool does to token
+usage, where it helps most, and where it does not help. It covers tools such as Claude, Devin,
+Copilot, Cursor and Windsurf, and it shows how to measure the effect yourself.
 
 > [!IMPORTANT]
 > **This page publishes no benchmark figures, on purpose.** It used to. Those numbers were taken on
 > one private estate, and no script, dataset, or result file was ever committed with them. So
-> nobody, including us, could re-run them. A figure you cannot reproduce is a claim wearing a
-> number's clothes, so they have been removed rather than restated. What is left:
+> nobody, including us, could re-run them. A figure nobody can re-run is not evidence, so the
+> figures are removed. What is left:
 >
 > - the mechanism, which you can check by reading the code
 > - a procedure for measuring the effect on your own repositories, which is the only place a number
@@ -176,11 +179,11 @@ round-trips.
 
 Different tools bill differently, so the honest answer differs per platform.
 
-- **Claude via MCP (per-token API).** This is the only place token deltas map *directly* to money.
+- **Claude through MCP (per-token API).** This is the only place token deltas map *directly* to money.
   But a per-*query* ratio is not a per-*session* saving: most agent tokens are reasoning, generation,
   and the conversation growing turn over turn, not retrieval. A retrieval-heavy session is where any
   input-token saving shows up at all, and a generation-heavy one is where it disappears. (Separately,
-  *output* tokens can drop too, via fewer failed regenerations and less reinvented code, but that is
+  *output* tokens can drop too, through fewer failed regenerations and less reinvented code, but that is
   a mechanism, not a measured figure; see
   [Does it cut generation tokens?](#does-it-cut-generation-tokens).)
 

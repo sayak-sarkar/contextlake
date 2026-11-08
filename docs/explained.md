@@ -47,10 +47,9 @@ to verify.
 `calls` edges, resolved by name and so marked `INFERRED`; the `contains` edge placing the function
 in that file is `EXTRACTED`."
 
-Every claim carries a location, and every location came out of a parse of your source rather than
-out of a model's memory. You can open the file. And the second half of that answer is the part
-worth noticing: the tool distinguishes what it read from what it deduced, rather than presenting
-both with the same confidence. That distinction is [its own section below](#confidence-and-provenance).
+Every claim carries a location. Every location came from a parse of your source. None came from a
+model's memory, and you can open the file. The second half of that answer matters too: the tool
+separates what it read from what it deduced, and labels each claim with its own confidence. That distinction is [its own section below](#confidence-and-provenance).
 
 That difference is the whole product. Everything below is the machinery that makes the second
 answer possible, and the reasons it is shaped that way.
@@ -69,7 +68,7 @@ that file states the intent plainly: the anti-hallucination contract is structur
 | Layer | What it does | What you get without the next one |
 | --- | --- | --- |
 | **Mirror** | Clones every repository you can reach on a GitLab group, GitHub org, Bitbucket workspace or Gitea owner, keeps each on its most active branch, and keeps them current | A local, always-fresh copy of the fleet. Useful on its own, with `grep` if nothing else |
-| **Knowledge** | Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki | Terminal answers: [Ask the graph](asking-the-graph.md) |
+| **Knowledge** | Parses that source into a typed graph, links it to your tickets and designs, embeds it for meaning-based search, and writes a cited wiki | Terminal answers: [Asking the graph](asking-the-graph.md) |
 | **Serve** | Exposes the graph over MCP, plus a local dashboard and a graph visualizer | Answers inside your editor and your agents |
 
 Each layer depends only on the one below it, never sideways and never upward:
@@ -179,7 +178,7 @@ A small decision with a measurement attached, and a good example of the house st
 
 The shard cache is capped by **estimated resident bytes**, not by number of entries. Parsed
 objects cost more memory than their JSON does. Measured on a real 20,000-node, 97,000-edge
-shard: 27.6 MB on disk, about 363 MB resident. Roughly 13 times
+shard, the shard takes 27.6 MB on disk and 363 MB in memory, 13.2 times the disk size
 (`src/contextlake/kb/store/shards.py`).
 
 An entry-count cap of, say, 256 would pin dozens of large shards in memory before it ever fired.
@@ -207,7 +206,7 @@ silently changing the mode of a path you pointed the tool at is a side effect no
 
 Config is discovered by walking up from the current directory, the way git finds `.git`. That is
 the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Three
-classes of setting are therefore honoured only from a file you named with `--config` or from your
+classes of setting are honoured only from a file you named with `--config` or from your
 own home config:
 
 - the ones that make contextlake *run a program* (`[llm] command`/`args`, `provider = "cli"`,
@@ -282,7 +281,7 @@ The token gate is ASGI middleware wrapping the whole application
 (`BearerAuthMiddleware` in `src/contextlake/kb/server.py`), which has a consequence worth knowing
 before you debug it: an unauthenticated request to *any* path, the root included, gets `401`, not
 `404`. Nothing is encrypted in transit; for anything past your own machine, put TLS or an SSH
-tunnel in front. See [Serve it to your editor](serving-over-mcp.md).
+tunnel in front. See [Serving over MCP](serving-over-mcp.md).
 
 ## Confidence and provenance
 
@@ -294,9 +293,9 @@ defaults (`src/contextlake/kb/model.py`).
 
 | Confidence | Means | Comes from |
 | --- | --- | --- |
-| `EXTRACTED` | Read directly out of the source. Ground truth | Containment and imports straight off the syntax tree; a manifest that literally names the dependency; a merge request whose diff demonstrably touched a file |
+| `EXTRACTED` | Read directly out of the source. Ground truth | Containment and imports straight off the syntax tree; a manifest that names the dependency; a merge request whose diff demonstrably touched a file |
 | `INFERRED` | Deduced. Probably right, not proven | A call resolved by name to exactly one definition; a foreign key recognised by pattern; an HTTP route matched to its handler |
-| `AMBIGUOUS` | Genuinely uncertain, flagged for a human to settle | A name that resolves to several definitions and could mean any of them; a free-text mention of a symbol in a ticket or a message |
+| `AMBIGUOUS` | Uncertain, flagged for a human to settle | A name that resolves to several definitions and could mean any of them; a free-text mention of a symbol in a ticket or a message |
 
 Note where the line falls, because it is stricter than you might guess: "this file contains this
 class" is `EXTRACTED`, and "this function calls that one" is `INFERRED`, because the call is matched
@@ -345,7 +344,7 @@ against a hand-labelled corpus on every CI run: **precision 1.00 and recall 0.69
 13 ground-truth edges (`tests/kb/fixtures/sql/`, scored by
 `tests/kb/test_sql_fixture_corpus.py`, which also asserts that these pages quote what it measures).
 Both documented gap classes, and the false positive that masking comments removed, are written down
-in [Index the code graph](code-graph-model.md#databases-sql-ddl).
+in [The code graph model](code-graph-model.md#databases-sql-ddl).
 
 That is a small synthetic corpus and not a claim about your codebase. It is published because
 "how much should I distrust an `INFERRED` SQL edge" is a question with a number, and a number you
@@ -504,7 +503,7 @@ described.
 
 - [Benchmarks](benchmarks.md), where the token and correctness impact comes from, and how to measure
   it on your own repositories
-- [Install and upgrade](installing.md), if you have decided to try it
+- [Installing and upgrading](installing.md), if you have decided to try it
 - [Architecture and internals](internals.md), the same machinery at implementation depth
-- [Ask the graph](asking-the-graph.md), the questions this page promised you can ask
-- [Index the code graph](indexing-the-code-graph.md), what the graph contains
+- [Asking the graph](asking-the-graph.md), the questions this page promised you can ask
+- [Indexing the code graph](indexing-the-code-graph.md), what the graph contains

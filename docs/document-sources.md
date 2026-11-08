@@ -1,5 +1,7 @@
 # Document sources and RAG
 
+**Who this is for:** operators who bring documents, tickets and web pages into the graph.
+
 Not everything worth retrieving lives in code. This page is the reference for
 `contextlake kb ingest` and the `[[sources]]` block: which source types are built in, what each
 one extracts, what it refuses to guess at, and every key you can set.
@@ -64,7 +66,7 @@ reported as unreadable, and the run exits 1.
 
 Design docs, RFCs and architecture decisions arrive as PDFs, so the `files` source reads
 them as well. `*.pdf` is one of its default globs, and the text comes from the PDF's **text layer**
-via `pypdf`, which rides in its own extra so the core stays a single dependency:
+through `pypdf`, which rides in its own extra so the core stays a single dependency:
 
 ```bash
 pip install "contextlake[kb-pdf]"
@@ -126,19 +128,19 @@ time, to a third party.
 `[kb-ocr]` ships its models inside the wheel instead. A first run downloads nothing, and no image
 leaves the machine. The offline boundary holds for images exactly as it does for code.
 
-It is a large extra -- roughly 390 MB once onnxruntime and opencv land -- which is why it is
+It is a large extra, an estimated 390 MB once onnxruntime and opencv land, which is why it is
 separate from `[kb]` and from `[kb-full]`, the same call `[kb-fastembed]` makes.
 
 rapidocr opens each image file with Pillow, so a Pillow advisory reaches files in your
-repositories that this tool did not write. `[kb-ocr]` therefore requires Pillow 13 or newer.
+repositories that this tool did not write. That is why `[kb-ocr]` requires Pillow 13 or newer.
 Pillow 13 needs Python 3.11 or newer. On Python 3.10 the extra fails to install: pip reports
 no matching Pillow, because the only Pillow for 3.10 is version 12, which has eight advisories.
 
 An OCR'd document is marked. Its node carries `ocr = true` in `attrs`, because OCR misreads and a
 reader deciding how far to trust a line should not have to infer that from a file extension.
 
-The quiet outcome is the common one and it is still loud: an image the engine reads no words in --
-a logo, an icon, a photograph -- is reported and stored as nothing, rather than becoming an empty
+The quiet outcome is the common one and it is still loud: an image the engine reads no words in
+(a logo, an icon, a photograph) is reported and stored as nothing, instead of becoming an empty
 document that looks like knowledge:
 
 ```
@@ -165,23 +167,25 @@ images use. It adds `av`, which bundles its own ffmpeg, so there is **no system 
 install first** and nothing is downloaded at runtime: as offline as image ingestion. It reads
 the slides, the terminal and the UI.
 
-**`[kb-transcribe]`** adds the spoken track via a local speech model. That model is fetched
+**`[kb-transcribe]`** adds the spoken track with a local speech model. That model is fetched
 once on first use and cached under `~/.contextlake/models`, the same way `[kb-local]`'s
-embedder is -- a weaker offline promise than frame OCR's, which is why it is a
+embedder is. That is a weaker offline promise than frame OCR's, which is why it is a
 separate extra rather than folded into the first. `CONTEXTLAKE_WHISPER_MODEL` picks the size;
 the default is the smallest useful one, because a first run downloads it.
 
-**The work is bounded, not the file.**
+#### The work is bounded, not the file
 
 `max_bytes` gates every other type because file size predicts how much text a document
 contributes. For a video it predicts resolution and length instead, so a 1 MB cap would reject
 every real recording.
 
 What is capped is the sampling: one frame every 5 seconds, at most 60 frames. A two-hour
-recording therefore costs the same as a ten-minute one.
+recording costs the same as a ten-minute one.
 
 Repeated on-screen lines are said once. A slide holds still across many samples, and keeping
 every hit would drown the transcript in its own echo.
+
+#### Three outcomes
 
 Three outcomes are stated rather than implied:
 
@@ -192,10 +196,14 @@ Three outcomes are stated rather than implied:
   reported as a recording with no audio, not as a failed transcription.
 - **Nothing readable either way.** Reported and stored as nothing, never as an empty document.
 
+### Page numbers
+
 Page numbers survive the ingest. A page is to a PDF what a line number is to source code, so each
 document carries `pages` (how many the file has), `pages_read` and `page_offsets` (the character
 offset in the document's text where each page starts) in the `attrs` that land on its graph node.
 The document's `uri` stays the plain file path, so it is still a citable path on disk.
+
+### Writing a plugin
 
 **Writing a plugin** is one class with `iter_documents()` and one entry point, no fork, no core
 dependency:
@@ -215,6 +223,8 @@ class ConfluenceSource:
         yield Document(id="123", title="Runbook", text="...", uri="https://...")
 ```
 
+### Built-in sources
+
 `contextlake kb ingest` then discovers `type = "confluence"` automatically. Five sources ship built-in:
 `files`, `web`, `api`, `graphql`, and `mcp`. **`web`** fetches URLs and ingests their readable text
 (stdlib-only):
@@ -225,6 +235,8 @@ type = "web"
 name = "changelog"
 urls = ["https://example.com/changelog", "https://example.com/roadmap"]
 ```
+
+### API sources
 
 An **`api`** source ships built-in too: GET a JSON endpoint and map its records to documents, with the
 secret read from an env var (never the config file):
@@ -256,6 +268,8 @@ source that sent a request and got nothing back. Any `web`, `api`, `graphql` or 
 entry that sent no request prints the same `nothing to ingest:` line with its own reason. The reasons are a
 missing `url`, `query` or `command`, and a URL that is not http or https.
 
+### Targets that cannot be read
+
 **A target that cannot be read does not delete its document.** Say some targets of a source answer and
 others fail (a page that returns a 500, a file that cannot be opened). `kb ingest` then stores the new
 documents and keeps what the last run stored for everything it did not read again. The source's line
@@ -265,6 +279,8 @@ run exits 1.
 - A run that reads every target replaces the whole set, so a page you removed from the config leaves
   on that run.
 - If no target answers, the earlier documents stay as they were.
+
+### Authentication
 
 **The credential stays on one host.** The `Authorization` header goes only to the origin
 (scheme, host and port) of `url`. A redirect, or a next-page link, that points at a different
@@ -313,6 +329,8 @@ The Jira search address:
 > where a secret is sent and how it is spent. Name the config explicitly with `--config` to
 > use them.
 
+### GraphQL sources
+
 A **`graphql`** source ships built-in too: POST a query (+ optional variables) and map records in
 the response to documents, the same way `api` maps a REST response:
 
@@ -326,6 +344,8 @@ items = "repository.issues.nodes"   # dotted path into the response, rooted at `
 text_field = "body"
 token_env = "EXAMPLE_API_TOKEN"     # bearer token comes from this env var
 ```
+
+### MCP sources
 
 An **`mcp`** source ships built-in as well: contextlake connects as an MCP *client* (stdio or
 streamable-HTTP) to another MCP server, lists its resources, and ingests each:
@@ -361,6 +381,8 @@ arg_template = { query = "{terms}" }  # {terms} substituted with codebase-derive
 Both transports work with tool calling: `command` and `args` for stdio, or `url` for streamable-HTTP. The
 tool is called with the templated arguments during enrichment, returning documents grounded to the
 codebase's query context.
+
+### Additional keys
 
 **Additional `[[sources]]` keys.** Beyond the per-type keys above, connector and ingest sources also
 accept:

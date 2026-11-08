@@ -1,8 +1,10 @@
 # Configuration
 
+**Who this is for:** anyone who sets up contextlake for a machine, a project or a team, and needs to know which config file wins.
+
 contextlake reads persistent settings from a config file, with CLI arguments overriding them. (Installing
-contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-layer extras are in the
-[Knowledge layer](knowledge-layer.md) overview.)
+contextlake is covered in the [Quickstart](../QUICKSTART.md); the knowledge-layer extras are on the page
+[The knowledge layer](knowledge-layer.md).)
 
 Finding the file is a walk up the directory tree, not a lookup in one fixed place. A worked example,
 run three directories below the config that ends up applying:
@@ -37,7 +39,7 @@ Configuration is loaded in this precedence order:
 4. **CLI arguments**: override all other settings
 
 Run `contextlake init --local` inside a project to create that project's local config
-(`.contextlake.ini` + `.contextlake/kb.toml`'s knowledge-layer equivalent, `.contextlake.kb.toml`) instead
+(`.contextlake.ini` and `.contextlake.kb.toml`) instead
 of the global one, see [Directory-scoped config](#directory-scoped-config) below.
 
 If `init` cannot write a file, it names the file, stops, and exits with code 1. Pass `--config PATH`
@@ -133,18 +135,23 @@ commands land in it by default without needing `--local` again. An explicit `--c
 precedence over both the local and global tiers.
 
 `init --local` also scopes one of the *values* it writes, not just the config file's location: the
-knowledge-layer's `store_dir` defaults to a `.contextlake/kb` directory next to the workspace instead
-of the global `~/.contextlake/kb` (override with `--store-dir`), so two separate `--local` projects
+knowledge-layer's `store_dir` defaults to `<work_dir>/.contextlake/kb`, a directory inside the workspace
+folder, instead of the global `~/.contextlake/kb` (override with `--store-dir`), so two separate `--local` projects
 never end up sharing one store. `work_dir` is not part of that: **every** `contextlake init` defaults
 it to the current directory, `--local` or not (override interactively, or with `--work-dir`).
 
 ## Workspace trust
 
-Because a local config is *discovered* rather than named, one can take effect that you never wrote:
-notably a `.contextlake.kb.toml` that came inside a repository you cloned. So the config keys that
-decide what contextlake runs, where a request goes, and which environment variable holds that
-request's credential are honoured **only** from the global `~/.contextlake/kb.toml` or from a path
-you pass to `--config`:
+contextlake also reads config files it finds on its own. A repo you clone can ship one, such as
+`.contextlake.kb.toml`, and it takes effect without you writing it.
+
+Some keys work only from two places:
+
+- the global file, `~/.contextlake/kb.toml`
+- a file you name with `--config`
+
+These keys decide what contextlake runs, where a request goes, and which environment variable holds
+the credential:
 
 | Key | Reaches |
 | --- | --- |
@@ -202,7 +209,7 @@ Three things clear it:
 - For `[llm]` only, pass `--llm PROVIDER` to `kb wiki`, `kb docs` or `bootstrap`. No other command
   carries the flag, and `[embeddings]` has no equivalent.
 
-An honest project-local `[llm]` or `[embeddings]` block naming `openai` or `anthropic` therefore has
+An honest project-local `[llm]` or `[embeddings]` block naming `openai` or `anthropic` has
 to move to `~/.contextlake/kb.toml`, or be reached with `--config`. `builtin` and `ollama` tiers are
 never switched off this way: they send no credential.
 
@@ -356,6 +363,6 @@ The branch-safety settings (`require_clean_workspace`, `protect_working_branches
 ## See also
 
 - [Quickstart](../QUICKSTART.md)
-- [Mirror repositories](mirroring-repositories.md)
-- [Knowledge layer](knowledge-layer.md)
+- [Mirroring repositories](mirroring-repositories.md)
+- [The knowledge layer](knowledge-layer.md)
 - [Scheduling runs](scheduling.md), the `schedule_*` keys in depth

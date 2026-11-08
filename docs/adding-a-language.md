@@ -1,5 +1,7 @@
 # Adding a language
 
+**Who this is for:** contributors who add a new programming language to the indexer.
+
 contextlake reads source with tree-sitter, and a language it understands is a handful of table entries
 in one file plus a grammar package. This page is the ordered recipe: the nine edits, in the order to
 make them, the parts of the repo to deliberately leave alone, and the commands that prove your grammar
@@ -228,7 +230,7 @@ consequence, so you can decide rather than guess.
 | Repo lettermark | `_LANG_LABELS` in `kb/visualize/styling.py` | the repo node keeps the generic repo glyph, and your language never appears in the graph-page legend. The dashboard reads the same table from the server, so one entry covers both |
 | HTTP endpoints and clients | `_FAMILY` in `kb/flow/http.py` | no `endpoint` nodes and no `calls_http` edges. Most languages skip this: Java, Kotlin, Scala, Go, Rust, C, C++, Ruby and PHP all do |
 | State machines | `_FAMILY` in `kb/flow/state.py` | no `state` nodes and no state diagram for your language |
-| Frontend routes | `_WEB_LANGS` in `kb/flow/web.py` | no `route` nodes. Correct to skip unless your language really hosts a JS-style router |
+| Frontend routes | `_WEB_LANGS` in `kb/flow/web.py` | no `route` nodes. Correct to skip unless your language hosts a JS-style router |
 | Docstrings and signatures | `_doc_sig` in `kb/parse.py` | signatures come from a `parameters` field lookup, docstrings from a Python first-statement string or a JSDoc / C# `///` leading comment. A language using another convention gets `doc=None`. It never raises, so this is a quality gap, not a failure |
 
 Event and topic extraction needs **nothing**: it is a language-agnostic scan over the file text, so
@@ -326,7 +328,7 @@ grammar does not have fails at construction, naming the row and column:
 tree_sitter.QueryError: Invalid node type at row 0, column 1: no_such_node_type
 ```
 
-A grammar upgrade that renames a node type therefore fails loudly here. Note the limit: this catches
+A grammar upgrade that renames a node type fails loudly here. Note the limit: this catches
 node **types**, not capture names. A capture name the parser does not read compiles cleanly and stays
 silent.
 
@@ -536,8 +538,8 @@ to hold your query to.
 
 ## See also
 
-- [Index the code graph](code-graph-model.md#languages), what the graph looks like once your language
+- [The code graph model](code-graph-model.md#languages), what the graph looks like once your language
   is in it
 - [CONTRIBUTING.md](../CONTRIBUTING.md), the development loop, commit style, and how to submit
-- [Word and term reference](style-guide-reference.md), the house rules the docs edits in step 8 follow
+- [Word reference](style-guide-reference.md), the house rules the docs edits in step 8 follow
 - [Architecture and internals](internals.md), where the parser sits in the three layers

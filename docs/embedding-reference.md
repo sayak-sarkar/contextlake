@@ -2,7 +2,9 @@
 
 Which nodes get a vector, how a long document is split into several, and which embedding
 model to run. Read this when a natural-language query misses something you expected it to
-find, or before you change the model on a store that already has vectors.
+find, or before you change the model on a store that already has vectors. This page answers
+"which model makes the vectors, and what gets one?". To choose where the model runs (built-in,
+Ollama or a hosted API), see [Model providers](model-providers.md).
 
 ## What gets embedded
 

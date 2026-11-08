@@ -69,7 +69,7 @@ ones, and caches the result in two files under `<cache_dir>`:
 
 `cache_dir` defaults to `~/.cache/contextlake` (`$XDG_CACHE_HOME/contextlake` when that is set), in
 a per-workspace subdirectory keyed on the workspace path, platform and group, created `0700`
-(`src/contextlake/config.py`). Two workspaces therefore never share one cache file. A `cache_dir`
+(`src/contextlake/config.py`). Two workspaces never share one cache file. A `cache_dir`
 you configure yourself is used verbatim, without a subdirectory, and is created but never
 re-permissioned.
 
@@ -400,7 +400,7 @@ Connector results, once fetched, stay queryable offline.
 ## See also
 
 - [contextlake, explained](explained.md), the same decisions at reasoning depth
-- [Index the code graph](indexing-the-code-graph.md), what the parser extracts
+- [Indexing the code graph](indexing-the-code-graph.md), what the parser extracts
 - [Configuration](configuration.md), the full settings reference
-- [Mirror repositories](mirroring-repositories.md), the commands this layer implements
-- [`contextlake` command reference](cli-reference.md), every flag
+- [Mirroring repositories](mirroring-repositories.md), the commands this layer implements
+- [Command reference](cli-reference.md), every flag

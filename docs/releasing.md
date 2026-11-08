@@ -76,8 +76,8 @@ pip install -e ".[release]"        # build + twine
    never drift apart.
 
 > [!IMPORTANT]
-> `CHANGELOG.md` is itself a page of the docs site, so **every** edit to it -- not just a
-> release's -- puts `site/llms-full.txt` out of date. Regenerate with
+> `CHANGELOG.md` is itself a page of the docs site, so **every** edit to it, not just a
+> release's, puts `site/llms-full.txt` out of date. Regenerate with
 > `.venv/bin/python site/build_docs.py` in the same commit.
 > `tests/test_llms_full_is_in_sync.py` catches it, but only after the fact.
 
@@ -170,8 +170,8 @@ pip install -e ".[release]"        # build + twine
    to compare against, the comparison did not happen, and reporting it as a pass is the one
    thing a verifier must never do.
 
-   It reports three states, never two. `????` means the check could not RUN -- no network,
-   the version not on the index yet, or no expected digest supplied -- and exits non-zero,
+   It reports three states, never two. `????` means the check could not RUN (no network,
+   the version not on the index yet, or no expected digest supplied), and exits non-zero,
    because "I could not look" must not read as "I looked and it was fine".
 
    `--tag` does not make the run offline. The script always queries the index first. It
@@ -249,7 +249,7 @@ Follow the steps above, with these changes:
   made after the last rc, and a pointer to the rc sections below it. 10.0.0 did this: its six
   rc sections came to 123,815 characters.
 
-## Tokenless publishing via GitHub Actions (recommended)
+## Tokenless publishing with GitHub Actions (recommended)
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) publishes to
 PyPI automatically using
@@ -276,7 +276,7 @@ token** and remove `~/.pypirc`, the workflow no longer needs them. (Manual
 ## Container image (ghcr.io)
 
 The same tag push also builds and publishes **two** Docker image variants to the
-**GitHub Container Registry** via the `docker` job in `release.yml` (using the
+**GitHub Container Registry** through the `docker` job in `release.yml` (using the
 built-in `GITHUB_TOKEN` with `packages: write`, no extra secret), both built from
 the same multi-stage [`Dockerfile`](../Dockerfile) (see also
 [`docker/prefetch_models.py`](../docker/prefetch_models.py)), non-root, with no
