@@ -277,6 +277,8 @@ Data flow is also **live-only**. It is a separate fetch with its own row shape, 
 has no snapshot for it, so the tab is still there and reads "Data flow (unavailable)" rather than
 "(0)": nothing is missing from your graph, it just is not in the export.
 
+![The Data flow tab on the live dashboard: each row names a file, the line, the table or view it reads or writes, and the relation](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/data-flow.png)
+
 ![The architecture graph: cross-repo dependencies](https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/dashboard/architecture.png)
 
 ## Change impact (blast radius)
