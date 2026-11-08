@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.3] - 2026-11-09
+
+A docs-only release. The code is the same as 10.0.2. A review checked the docs, the README and
+the diagrams against the source code and confirmed 55 findings. This release fixes all of them.
+
+### Fixed
+
+- **Which model runs, and what leaves your machine.** `provider = "auto"` picks Ollama only when
+  it is running and has the model pulled; the docs and the provider chart said running was
+  enough. The built-in models download once from Hugging Face. Ollama keeps prompts on your
+  machine only while `base_url` points at it (the default).
+- **The wiki model tier is off by default.** Several pages, the CLI reference and the
+  knowledge-layer chart described model-written prose as the default. By default `kb wiki`
+  writes structural pages and runs no model.
+- **The branch-safety chart had its decision backwards.** It now asks "on a non-safe branch?",
+  and yes leaves the repository on its branch while a pull still runs.
+- **Search falls back to full-text.** The semantic search chart now shows that `kb query`
+  returns full-text results when there is no embedder, no vectors yet, or the retriever failed.
+- Smaller corrections:
+  - the wiki council accepts a draft at or above `accept_score`;
+  - per-subsystem wiki pages skip the "accurate and complete" check;
+  - `kb enrich` also searches an api source with a `search_url`;
+  - only nodes with a file carry `citation_status`;
+  - `--dry-run` still refreshes the project-list cache;
+  - the bootstrap chart shows all 10 stages, and the precedence list includes `--config`;
+  - the trust gate lists five groups, and the index bundling thresholds count indexable files.
+- `docs/adding-a-language.md` describes the `_GRAMMARS` table that replaced the `elif` chain,
+  and the language table lists all 27 languages.
+
+### Changed
+
+- The eight generated diagrams share one style: one card shape, one connector, the brand colours
+  and fonts, and no text under 12px. A new `--png` flag on the three generators exports them with
+  the site fonts. The old PNGs used fallback fonts.
+- Removed two unused images, `docs/img/data-flow.png` and `docs/img/pipeline-bootstrap-old.png`.
+
 ## [10.0.2] - 2026-11-09
 
 A docs-only release. The code is the same as 10.0.1; the changes are in the docs and the docs

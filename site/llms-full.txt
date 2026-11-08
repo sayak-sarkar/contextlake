@@ -170,8 +170,16 @@ machine-learning stack to be installable. The knowledge layer is the `[kb]` extr
 Python 3.10 or newer, because the `mcp` SDK does.
 
 Everything runs on your machine. The repositories, the graph, the vectors and the generated prose
-are local files. The only outbound traffic is cloning from your own git host, the optional
-connectors, and a model provider if you choose one that is not local.
+are local files. The only outbound traffic is:
+
+- cloning from your own git host
+- the optional connectors
+- a model provider, if you choose one that is not local
+- a one-time download of the built-in models from Hugging Face, on first use of a built-in
+  engine (the `kb-local`, `kb-fastembed` or `llm-local` extra). With provider `auto`, it happens
+  only when no local Ollama supplies the model. It never happens in offline mode.
+- a one-time download of the speech model from Hugging Face, on first use of transcription (the
+  `kb-transcribe` extra)
 
 ## Why it is built this way
 
@@ -281,18 +289,24 @@ silently changing the mode of a path you pointed the tool at is a side effect no
 ### Config that spends a capability is trusted by provenance, not by content
 
 Config is discovered by walking up from the current directory, the way git finds `.git`. That is
-the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Three
-classes of setting are honoured only from a file you named with `--config` or from your
+the feature, and it is also a hole: a config file can arrive inside a repository you cloned. Five
+groups of setting are honoured only from a file you named with `--config` or from your
 own home config:
 
 - the ones that make contextlake *run a program* (`[llm] command`/`args`, `provider = "cli"`,
   `[[sources]] command`/`args`/`mcp_command`)
-- the ones that choose *where a request goes* (`base_url`, `[[sources]] mcp`)
+- the ones that choose *where a request goes* (`base_url`, `[[sources]] mcp`, `search_url`,
+  `gitlab_hosts`)
 - the ones that name *which environment variable holds the credential* sent with it
   (`api_key_env`, `[[sources]] token_env`, plus `auth` and `user`, which choose how that credential
-  is sent, and `auth_dir`, the directory an OAuth refresh token is written to)
+  is sent)
+- the one that chooses the folder an OAuth refresh token is written to (`auth_dir`)
+- the one that chooses the folder the built-in models download into (`cache_dir`)
 
-The first class was the whole gate to begin with, and reading the others as "not argv, so not this
+`[llm] review_provider` is also dropped when it names a vendor that receives an API key. The
+[configuration page](configuration.md#workspace-trust) has the full table.
+
+The first group was the whole gate to begin with, and reading the others as "not argv, so not this
 gate's problem" is how they stayed open. An endpoint and a secret to send to it are the same
 capability arriving in two pieces.
 
@@ -388,7 +402,8 @@ flowchart TD
   P -->|"containment, straight off<br/>the syntax tree"| E1[("an edge stored EXTRACTED")]
   P --> N["a call, matched by name"]
   N -->|"exactly one definition"| E2[("stored INFERRED")]
-  N -->|"several definitions"| E3[("stored AMBIGUOUS, with<br/>how many candidates")]
+  N -->|"2 to 10 definitions"| E3[("stored AMBIGUOUS, with<br/>how many candidates")]
+  N -.->|"more than 10 definitions"| DR(["no edge written,<br/>counted as dropped"])
 ```
 
 <div class="dg-key">
@@ -430,10 +445,11 @@ can reproduce is worth more than an adjective.
 
 A graph answers precise questions well and vague ones badly. "Who calls this function" is a
 traversal; "what does this service do, and why" is not stored anywhere and has to be written. So
-contextlake generates a wiki, which reintroduces exactly the risk it exists to remove: a model
-writing about code will invent things.
+contextlake generates a wiki. By default each page is structural, built from the graph with no
+model. The model tier is off until you enable `[llm]`. Once it is on, it drafts prose, which brings
+back the risk contextlake exists to remove: a model writing about code will invent things.
 
-Four mechanisms constrain it, and the third is the most interesting because of what it says about
+Four mechanisms constrain the model tier, and the third is the most interesting because of what it says about
 the second.
 
 1. **Grounding.** The model is handed a brief assembled from the graph, with file and line
@@ -456,8 +472,8 @@ front of the council:
 
 ```mermaid
 flowchart LR
-  G["a brief assembled from the graph,<br/>file and line references attached"] --> D["the model drafts a page"]
-  D --> GATE["a deterministic gate: leaked<br/>instruction text, repeated sentences"]
+  G["a brief assembled from the graph,<br/>file and line references attached"] --> D["the model drafts a page<br/>(only when the model tier is on)"]
+  D --> GATE{"a deterministic gate: leaked<br/>instruction text, repeated sentences"}
   GATE -->|"fails"| REJ(["reported as rejected,<br/>not published"])
   GATE -->|"passes"| CO["a review council scores<br/>the draft against the graph"]
   CO -->|"below the accept threshold"| REJ
@@ -468,6 +484,7 @@ flowchart LR
   <i><b class="dg-sh-step"></b>a rectangle is something that runs</i>
   <i><b class="dg-sh-store"></b>a cylinder is something that persists</i>
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
+  <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
 The gate's thresholds are measured, not picked.
@@ -613,7 +630,7 @@ flowchart TD
 
 <div class="dg-key">
   <i><b class="dg-sh-act"></b>a rounded box is a start or an end point</i>
-  <i><b class="dg-sh-step"></b>a rectangle is a channel below</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a step or an option you can take</i>
   <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
@@ -688,8 +705,8 @@ flowchart LR
 ```
 
 <div class="dg-key">
-  <i><b class="dg-sh-step"></b>a rectangle is a goal</i>
-  <i><b class="dg-sh-act"></b>a rounded box is the question, or the extra to install</i>
+  <i><b class="dg-sh-step"></b>a rectangle is a step or an option you can take</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point: the question, or the extra to install</i>
 </div>
 
 A scanned PDF has no text layer, and OCR does not cover it. See [Document sources](document-sources.md).
@@ -1147,7 +1164,7 @@ Everything beyond the mirror is optional. This quickstart turns on four things:
 - **Connectors.** They are off until `kb.toml` has a `[[sources]]` entry. The example in step 3 adds one.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then enrich, then wiki, then steer." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline in ten stages: sync, audit, index, connect, embed, enrich, wiki, diagrams, docs, then steer." width="828">
 </p>
 
 ## Try it on one repo, no setup
@@ -1779,7 +1796,7 @@ This command executes:
 5. `verify` - Verify structure
 6. `audit` - Report repo health & age (skip with `--no-audit`)
 
-> **Pebble's tip:** Run `contextlake mirror sync --dry-run` before your first full sync. It shows what would happen and changes nothing.
+> **Pebble's tip:** Run `contextlake mirror sync --dry-run` before your first full sync. It clones, updates and switches nothing. It still refreshes the project-list cache.
 
 ### `mirror audit`: repo health & age report
 
@@ -2028,15 +2045,16 @@ The walk stops at the filesystem root, and the *nearest* ancestor wins if projec
 
 ## Using configuration files
 
-Configuration is loaded in this precedence order:
+Configuration is loaded in this precedence order, highest first:
 
-1. **Local config**: the nearest ancestor directory's `.contextlake.ini`, walking up from the current
-   directory to the filesystem root (like git's `.git` discovery), highest priority. A config at your
+1. **CLI arguments**: override all other settings
+2. **A `--config PATH` file**: the file you name on the command line
+3. **Local config**: the nearest ancestor directory's `.contextlake.ini`, walking up from the current
+   directory to the filesystem root (like git's `.git` discovery). A config at your
    project root is inherited by every subdirectory underneath it; you don't need to be in the exact
    directory that holds the file.
-2. **Global config**: `~/.contextlake.ini` in the home directory
-3. **Default values**: built-in defaults (lowest priority)
-4. **CLI arguments**: override all other settings
+4. **Global config**: `~/.contextlake.ini` in the home directory
+5. **Default values**: built-in defaults (lowest priority)
 
 <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/configuration.webp" alt="Pebble holding a stack of pebbles, to picture the config sources that are layered on top of each other." width="1200" height="800" loading="lazy">
 
@@ -2412,12 +2430,16 @@ flowchart TD
   B -->|yes| ONE["indexed as one repository"]
   B -->|no| G{"is it itself a git repo?"}
   G -->|yes| ONE
-  G -->|no| S{"does it hold git repos, with<br/>nothing of yours outside them?"}
-  S -->|no| ONE
+  G -->|no| S{"does it hold several git repos, with only a<br/>trivial share of files outside them?"}
   S -->|yes| R(["refused, naming the command that fits"])
-  R -.->|"kb index --workspace"| EACH["each repo indexed under its own id"]
+  S -->|no| O{"does it hold one git repo,<br/>with nothing outside it?"}
+  O -->|yes| R2(["refused, naming the command that fits"])
+  O -->|no| ONE
+  R -.->|"several repos:<br/>kb index --workspace"| EACH["each repo indexed under its own id"]
+  R2 -.->|"kb index on that repo"| SOLO["that repo indexed under its own id"]
   ONE --> GR[("the graph")]
   EACH --> GR
+  SOLO --> GR
 ```
 
 <div class="dg-key">
@@ -2464,7 +2486,7 @@ Only then does it decide:
 
 | What the directory looks like | What happens |
 | --- | --- |
-| Several repositories, and nothing of your own outside them | refused; run `--workspace <dir>` |
+| Several repositories, and little of your own outside them (10 files or fewer, or 5% or less of the indexable files) | refused; run `--workspace <dir>` |
 | One repository, nothing at all outside it | refused; the directory is one level too high, and the command names the repository |
 | Real content of yours outside the repositories (your sources plus a vendored dependency) | indexed as one repository, with a line saying so |
 | A git repository (`.git` present), whatever it contains | indexed, no diagnosis at all |
@@ -2815,8 +2837,8 @@ dashboard use, so node kinds look the same everywhere. Most edge relations match
 
 ### Languages
 
-tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one grammar), and the
-parser registry is pluggable.
+tree-sitter covers **27 languages across 25 grammars** (TypeScript and TSX share one package, and
+Vue shares HTML's), and the parser registry is pluggable.
 
 Depth differs across four tiers, and a single number would hide it.
 
@@ -2863,8 +2885,11 @@ Two gaps, named here so you do not have to find them yourself:
 | JVM | Java, Kotlin, Scala |
 | .NET | C# |
 | Web / JS | JavaScript, TypeScript, TSX |
-| Systems | C, C++, Rust, Go |
-| Scripting | Python, Ruby, PHP |
+| Web markup and components | HTML, CSS, Svelte, Vue |
+| Systems | C, C++, Rust, Go, Zig |
+| Mobile | Swift, Dart |
+| Scripting | Python, Ruby, PHP, Perl, Bash, Elixir |
+| Build and config | Nix, Make, Dockerfile |
 
 Frameworks are indexed through their base language: **React / Next.js / Node.js** are JS/TS(X),
 **Angular** is TS (its templates are HTML), and **.NET** is C#.
@@ -3302,7 +3327,7 @@ queries connected sources with codebase-derived terms and stores what comes back
 flowchart LR
   C(["tracker, designs, merge<br/>requests, chat"]) --> CON["kb connect"]
   I(["files, web, api, graphql,<br/>another MCP server"]) --> ING["kb ingest"]
-  Q(["the searchable ones: Atlassian,<br/>or an MCP search tool"]) --> ENR["kb enrich"]
+  Q(["the searchable ones: Atlassian,<br/>an MCP search tool, or an api<br/>source with search_url"]) --> ENR["kb enrich"]
   G[("the code graph")] -.->|"repo name and top symbols<br/>become the search terms"| ENR
   CON --> P[("isolated partitions")]
   ING --> P
@@ -4132,6 +4157,7 @@ flowchart LR
   V --> R
   G[("the graph")] -.->|"hybrid propagates<br/>relevance across it"| R
   R --> H(["cited hits: repo, file:line,<br/>kind, name"])
+  R -.->|"kb query only: no embedder,<br/>no vectors yet, or the retriever failed"| FTS(["full-text (fts) results<br/>instead"])
 ```
 
 <div class="dg-key">
@@ -4546,7 +4572,10 @@ Every indexed repository gets one wiki page per scope, and it exists the moment 
 the checkout, with no language model involved. If an LLM is configured, it then drafts prose from that
 page, and the prose replaces it only when the prose is at least as accurate and as complete.
 
-So the page you read is one of two things, and it always says which.
+So the page you read is one of two things, and it always says which. The diagram below is the
+per-repository path. A cluster page (`--namespace`) skips the "accurate and at least as complete"
+step, because it has no structural page to replace. It goes from the structural check straight to
+the council. See [cluster pages](#cluster-namespace-wiki).
 
 ```mermaid
 flowchart TD
@@ -4561,7 +4590,7 @@ flowchart TD
   SG -->|yes| RG{"accurate and at least<br/>as complete?"}
   RG -->|no| K
   RG -->|yes| C["the verification council,<br/>one review per lens"]
-  C --> S{"mean score above accept_score?"}
+  C --> S{"mean score at or above accept_score?"}
   S -->|no| K
   S -->|yes| W
 ```
@@ -4633,8 +4662,9 @@ which is what makes publishing from a cheap local generator safe.
 
 Two ways to turn the tier on.
 
-- **In the config**, by enabling `[llm]`. Generation runs on a local Ollama model by default, so
-  prompts never leave the machine.
+- **In the config**, by enabling `[llm]`. With `[llm]` enabled, `provider = "auto"` (the default) uses a
+  local Ollama if it has the model, else the built-in CPU model. The built-in model runs in-process. Ollama runs on this machine
+  while `base_url` is loopback (the default).
 - **Inline**, with `--llm <provider>`, skipping the toml entirely. Providers: `builtin`,
   `ollama`, `openai`, `anthropic`, `cli`, `auto`.
 
@@ -5067,7 +5097,7 @@ contextlake kb docs acme/forecast-api acme/alerts
 | Code | Meaning |
 | --- | --- |
 | `0` | Every requested repository was documented, or had no symbols to document |
-| `1` | A shard could not be read, or nothing could be written at all |
+| `1` | A shard could not be read, or nothing could be written at all, or a repository's documents failed to render or write (the run names the repository) |
 
 A repository that indexed to zero symbols is reported and is **not** a failure: a repository
 of build and configuration files has no interface to document. A shard the store lists but
@@ -5328,8 +5358,8 @@ flowchart LR
   P -->|"ollama"| OL["a local Ollama daemon"]
   P -->|"openai, plus anthropic<br/>for the wiki"| API["a hosted API, key<br/>read from an env var"]
   P -->|"cli, for the wiki"| C["an agent CLI you<br/>already pay for"]
-  BI --> IN(["nothing leaves your machine"])
-  OL --> IN
+  BI --> BIN(["no prompt leaves your machine<br/>(the model downloads once)"])
+  OL --> IN(["nothing leaves your machine while<br/>base_url is loopback (the default)"])
   API --> OUT(["your prompts leave your machine"])
   C --> OUT
 ```
@@ -5716,7 +5746,7 @@ editing current, and the lock is what stops the two of them from writing at once
 ## One command for the whole pipeline
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline: sync, then index, then connect, then embed, then enrich, then wiki, then steer." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pipeline-bootstrap.png" alt="The contextlake bootstrap pipeline in ten stages: sync, audit, index, connect, embed, enrich, wiki, diagrams, docs, then steer." width="828">
 </p>
 
 ```bash
@@ -6647,7 +6677,7 @@ flowchart LR
   IDX -.->|"parses source"| G[("the graph")]
   CON -.->|"links tickets,<br/>designs, threads"| G
   EMB -.->|"builds vectors"| V[("vectors")]
-  WIK -.->|"writes cited prose"| W[("wiki pages")]
+  WIK -.->|"writes structural pages,<br/>plus cited prose when the model tier is on"| W[("wiki pages")]
   SRV --> AG(["your AI tools,<br/>answering with citations"])
 ```
 
@@ -7097,7 +7127,7 @@ build step, one command and it opens in your browser. Read-only by default; see
 
 ```mermaid
 flowchart LR
-  G[("the code graph")] --> A(["Fleet, Repo, Diagrams,<br/>Architecture, Blast radius, Path"])
+  G[("the code graph")] --> A(["Fleet, Repo (with its Diagrams tab),<br/>Architecture, Blast radius, Path,<br/>Health, Search"])
   W[("the generated wiki")] --> B(["a repo's page, and its Wiki tab"])
   G --> C(["Chat: a free graph router,<br/>with opt-in LLM prose"])
   P["this machine and this process,<br/>not the graph"] --> D(["MCP console, Settings"])
@@ -8391,8 +8421,8 @@ inserted above it. The answer still says 88.
 
 A confidently wrong citation is worse than a miss, because the agent goes and reads it.
 
-Every node a tool returns carries **`citation_status`**, decided against the file on disk
-as the answer is built:
+Every node with a file carries **`citation_status`**, decided against the file on disk
+as the answer is built. A node with no file gets `None`:
 
 | value | what it means |
 |---|---|
@@ -8462,7 +8492,7 @@ contextlake kb graph --repo acme/forecast-api          # one repo's internal cod
 flowchart LR
   A(["contextlake kb graph"]) --> S1["--node / --name / --search<br/>walks outward: --hops,<br/>--relation, --direction"]
   A --> S2["--repo, one repo,<br/>no outward walk"]
-  A --> S3["--overview, the fleet,<br/>--max-nodes alone"]
+  A --> S3["--overview, the fleet,<br/>--max-nodes sets the cap<br/>(default 5000)"]
   S1 --> B["every view is capped, and<br/>whatever is dropped is logged"]
   S2 --> B
   S3 --> B
@@ -8568,8 +8598,8 @@ Output is chosen with `--format`:
       their labels hidden until you click a node (so the view stays readable).
     - Pan, zoom, drag, and a **layout switcher** (`cose`, `concentric`, `breadthfirst`, `circle`,
       `grid`, `dagre`) in the page. Set the initial one with `--layout`.
-    - `dagre` is a preview: it is layered and directed rather than organic, and below 400 nodes it
-      renders each node as an HTML card instead of a dot.
+    - `dagre` is a preview: it is layered and directed, not organic, and at 400 nodes or
+      fewer it renders each node as an HTML card instead of a dot.
     - `--site DIR` writes into a new or empty folder, or into a folder an earlier `--site` export
       made. Each export leaves a `.contextlake-export` file in the folders it writes and looks
       for it on the next run.
@@ -9096,7 +9126,7 @@ then the nearest ancestor directory's local file, then an explicit `--config`, t
 Discovery walks up from the current directory to the filesystem root, the way git finds `.git`.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="760">
+  <img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/config-precedence.png" alt="Configuration precedence: built-in defaults, then the global ~/.contextlake.ini, then the nearest ancestor directory's local .contextlake.ini, then a --config custom file, then CLI flags, each layer overrides the one before it." width="960">
 </p>
 
 One carve-out matters for safety.
@@ -9439,8 +9469,9 @@ exercised by that test today.
 ### INV-2: the offline boundary
 
 > [!IMPORTANT]
-> Parsing, the graph, FTS, query, visualization and embedding all run with no network. The
-> connectors are the opt-in exception, and even they degrade rather than fail.
+> Parsing, the graph, FTS, query, visualization and embedding all run with no network, after the
+> one-time download of the built-in embedding model. The connectors are the opt-in exception, and
+> they degrade instead of failing.
 
 `tests/kb/test_offline_boundary.py` enforces it by patching `socket.getaddrinfo` and
 `socket.create_connection` to raise, then asserting that `kb index`, `kb query`, `kb graph
@@ -9663,7 +9694,7 @@ Covered in depth under [Mirror repositories](mirroring-repositories.md).
 | `kb enrich` | Query connected sources with codebase-derived terms and store enrichment docs (`--workspace`, incremental) |
 | `kb embed` | Build semantic-search vectors (zero-config built-in CPU model, Ollama, or an API; incremental, `--watch`) |
 | `kb ingest` | Aggregate external docs into the graph + semantic store (built-in `files`/`web`/`api`/`graphql`/`mcp` sources, or plugins) |
-| `kb wiki` | LLM-synthesized, council-verified wiki pages (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
+| `kb wiki` | Structural wiki pages from the graph, with no LLM by default. With `--llm`, adds council-verified LLM prose (per-repo, or a cluster page with `--namespace <prefix>` / `--namespaces --depth N`); `--llm builtin\|ollama\|openai\|anthropic\|cli\|auto` enables the LLM tier inline (`builtin` needs `doctor --fix llm-local` first on a `pip` install; `ollama` needs no compiler) |
 | `kb docs` | Generated documentation, no model involved: an API reference per repository listing each symbol's real call sites, plus design notes recording the dependencies its manifests declare and the values its code reads most. `--max-symbols N` bounds the reference (default 500) and every page states what it left out |
 | `kb query` | Search the index (`--kind`, `--repo`, `--as-of <commit>`, `--retriever fts\|semantic\|hybrid`, `--json`) |
 | `kb owners` | Likely owners / SMEs for a repo or path, ranked from git history (alias `kb who-knows`, `--json`) |
@@ -10411,17 +10442,16 @@ is wrong, so it is almost always faster than reading down this page:
 ```mermaid
 flowchart TD
   D(["contextlake doctor"]) --> Q{"what did it report?"}
-  Q -->|"an import or extra is missing"| I["the knowledge layer<br/>will not install"]
+  Q -->|"an import or extra is missing"| I(["the knowledge layer<br/>will not install"])
   Q -->|"a compiler error"| I
-  Q -->|"externally managed<br/>environment"| E["pip refuses to<br/>install into the system"]
-  Q -->|"it printed a sudo<br/>command"| S["doctor --fix declined<br/>to run it for you"]
-  Q -->|"all green, but a<br/>repo is wrong"| M["the mirror"]
+  Q -->|"externally managed<br/>environment"| E(["pip refuses to<br/>install into the system"])
+  Q -->|"it printed a sudo<br/>command"| S(["doctor --fix declined<br/>to run it for you"])
+  Q -->|"all green, but a<br/>repo is wrong"| M(["the mirror"])
   Q -->|"nothing above"| O(["open an issue"])
 ```
 
 <div class="dg-key">
-  <i><b class="dg-sh-act"></b>a rounded box is something you run or do</i>
-  <i><b class="dg-sh-step"></b>a rectangle is a section on this page</i>
+  <i><b class="dg-sh-act"></b>a rounded box is a start or an end point: the command, or the section below that covers the symptom</i>
   <i><b class="dg-sh-dec"></b>a diamond is a decision</i>
 </div>
 
@@ -10588,6 +10618,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [10.0.3] - 2026-11-09
+
+A docs-only release. The code is the same as 10.0.2. A review checked the docs, the README and
+the diagrams against the source code and confirmed 55 findings. This release fixes all of them.
+
+### Fixed
+
+- **Which model runs, and what leaves your machine.** `provider = "auto"` picks Ollama only when
+  it is running and has the model pulled; the docs and the provider chart said running was
+  enough. The built-in models download once from Hugging Face. Ollama keeps prompts on your
+  machine only while `base_url` points at it (the default).
+- **The wiki model tier is off by default.** Several pages, the CLI reference and the
+  knowledge-layer chart described model-written prose as the default. By default `kb wiki`
+  writes structural pages and runs no model.
+- **The branch-safety chart had its decision backwards.** It now asks "on a non-safe branch?",
+  and yes leaves the repository on its branch while a pull still runs.
+- **Search falls back to full-text.** The semantic search chart now shows that `kb query`
+  returns full-text results when there is no embedder, no vectors yet, or the retriever failed.
+- Smaller corrections:
+  - the wiki council accepts a draft at or above `accept_score`;
+  - per-subsystem wiki pages skip the "accurate and complete" check;
+  - `kb enrich` also searches an api source with a `search_url`;
+  - only nodes with a file carry `citation_status`;
+  - `--dry-run` still refreshes the project-list cache;
+  - the bootstrap chart shows all 10 stages, and the precedence list includes `--config`;
+  - the trust gate lists five groups, and the index bundling thresholds count indexable files.
+- `docs/adding-a-language.md` describes the `_GRAMMARS` table that replaced the `elif` chain,
+  and the language table lists all 27 languages.
+
+### Changed
+
+- The eight generated diagrams share one style: one card shape, one connector, the brand colours
+  and fonts, and no text under 12px. A new `--png` flag on the three generators exports them with
+  the site fonts. The old PNGs used fallback fonts.
+- Removed two unused images, `docs/img/data-flow.png` and `docs/img/pipeline-bootstrap-old.png`.
 
 ## [10.0.2] - 2026-11-09
 
@@ -22046,6 +22112,8 @@ Never default to "he" or "she". Use diverse, realistic names in examples.
 - **Generated, not hand-drawn.** Flat diagrams come from `site/tools/gen_diagrams.py` (SVG, brand palette,
   transparent), rasterized with cairosvg where a PNG is needed. Don't use an image model for a flat
   diagram; it garbles labels. Painterly Pebble scene art is a separate, decorative register.
+  Mermaid diagrams are the exception: they are hand-written as fences in the page source, and
+  their node, edge and legend text must match the code.
 - **Lead with real CLI screenshots** where they teach best, a code-grounded diagram where a picture
   replaces more than a hundred words of prose, and painterly Pebble art where a picture helps explain
   something.
@@ -22110,9 +22178,10 @@ micro-choices, so no contributor, and no agent, re-decides them.
   - **a repo** in running prose (match the CLI), not "repository".
   - command names (`sync`, `index`, `graph`, `wiki`, `serve`) are lowercase and in `code`.
 - **The language count:** "27 languages across 25 tree-sitter grammars" (`.tsx` shares the TypeScript
-  grammar). Use this exact phrasing everywhere. `tests/kb/test_docs_language_count.py` derives both
-  numbers from `ALL_LANGS` and `_GRAMMARS` and fails if a doc drifts from the code, so adding a
-  grammar means updating this line and the pages that quote it, not hunting for them later.
+  package, and Vue shares HTML's). Use this exact phrasing everywhere.
+  `tests/kb/test_docs_language_count.py` derives both numbers from `ALL_LANGS` and `_GRAMMARS` and
+  fails if a doc drifts from the code, so adding a grammar means updating this line and the pages
+  that quote it, not hunting for them later.
   `ALL_LANGS`, not `LANG_BY_EXT`: a file can reach a grammar by NAME as well as by extension,
   and counting extensions alone under-reports the total while reading as a complete count.
 - **Depth is part of the claim.** Not every language is extracted to the same depth, and a single
@@ -22447,21 +22516,21 @@ Alias a shared query the same way you aliased the kinds: `_QUERIES["tsx"] = _QUE
 
 ### 5. Load the grammar
 
-`_language()` is an explicit `if`/`elif` chain of lazy imports ending in
-`raise ValueError(f"unsupported language: {lang}")`. Add a branch:
+Grammar loading is a table, `_GRAMMARS`, with one row per language. `_language()` looks the row up
+and imports the package lazily. An id with no row raises
+`ValueError(f"unsupported language: {lang}")`. Add one row:
 
 ```python
-elif lang == "<lang>":
-    import tree_sitter_<lang> as g
-    fn = g.language
+"<lang>": ("tree_sitter_<lang>", "language"),
 ```
 
-**Keep the import inside the function.** The laziness is load-bearing: the core tier of contextlake
-must work with no tree-sitter installed at all, and two tests police that boundary.
+**Keep the import lazy.** The row holds the module name as a string, and `_language()` imports it
+on first use. Do not add a top-level `import`. The laziness is load-bearing: the core tier of
+contextlake must work with no tree-sitter installed at all, and two tests police that boundary.
 
-Read the grammar package before you write `fn = g.language`. Some expose more than one entry point:
-the TypeScript wheel provides `language_typescript` and `language_tsx`, and the PHP wheel provides
-`language_php`.
+Read the grammar package before you write the factory name in the row. Some expose more than one
+entry point: the TypeScript wheel provides `language_typescript` and `language_tsx`, and the PHP wheel
+provides `language_php`. The C# package is `tree_sitter_c_sharp`.
 
 The parser cache and the query cache need no change. Both are keyed by the same language id and pick
 your language up for free.
@@ -22522,7 +22591,7 @@ five hand-written places:
 | --- | --- |
 | `README.md` | the count in the feature list |
 | `ROADMAP.md` | the count in the knowledge-graph bullet |
-| `docs/indexing-the-code-graph.md` | the count in the [Languages](code-graph-model.md#languages) section, **and** a new row in the Ecosystem table |
+| `docs/code-graph-model.md` | the count in the [Languages](code-graph-model.md#languages) section, **and** a new row in the Ecosystem table |
 | `docs/style-guide-reference.md` | the mandated phrasing itself |
 | `site/build_docs.py` | the "Index the code graph" page subtitle |
 
@@ -22650,7 +22719,7 @@ grammar + query OK
 ```
 
 This is the cheapest check and the one that separates the three most common failures from each other:
-it proves the `pyproject.toml` entry installed, that your `_language` branch names the right entry
+it proves the `pyproject.toml` entry installed, that your `_GRAMMARS` row names the right entry
 point, and that your query compiles against **that** grammar version.
 
 The compile step is strict, which is why it is worth a contributor's time. A node type your
@@ -22791,7 +22860,7 @@ still reports success:
 
 | What you forgot | What it raises |
 | --- | --- |
-| the `_language()` branch | `ValueError: unsupported language: <lang>` |
+| the `_GRAMMARS` row | `ValueError: unsupported language: <lang>` |
 | the `_DEF_TYPES` row | `KeyError` on `_DEF_TYPES[lang]` |
 | the `_QUERIES` row | `KeyError` on `_QUERIES[lang]` |
 
@@ -22821,8 +22890,8 @@ downstream. Omitting the language self-isolates it, which is always safe. See st
 ### Aliasing a grammar is three edits, not one
 
 If two ids share one grammar, all three tables need the pairing and each is a separate statement: the
-`_DEF_TYPES` alias, the `_QUERIES` alias, and a distinct `_language()` branch naming the grammar's
-other entry point. Missing the third is the first row of the silent-skip table above.
+`_DEF_TYPES` alias, the `_QUERIES` alias, and a `_GRAMMARS` row naming the grammar package and its
+factory. A shared package needs one row per id. Missing the third is the first row of the silent-skip table above.
 
 ### Do not introduce anything order-dependent
 
@@ -22851,7 +22920,7 @@ makes it a useful template: it shows which parts are required.
 | 2 | `kb/parse.py`, `LANG_BY_EXT` | `".kt": "kotlin", ".kts": "kotlin",` |
 | 3 | `kb/parse.py`, `_DEF_TYPES` | `class_declaration` and `object_declaration` to `class`, `function_declaration` to `function` |
 | 4 | `kb/parse.py`, `_QUERIES` | three `@def` patterns, one `@import`, one `@call`, two `@base` |
-| 5 | `kb/parse.py`, `_language()` | `elif lang == "kotlin": import tree_sitter_kotlin as g; fn = g.language` |
+| 5 | `kb/parse.py`, `_GRAMMARS` | `"kotlin": ("tree_sitter_kotlin", "language"),` |
 | 6 | `kb/parse.py`, `_LANG_FAMILY` | `"kotlin": "jvm",` alongside Java and Scala |
 | 7 | `tests/kb/test_kb_parse.py` | `test_parse_kotlin()`, plus `".kt"`, `".kts"` and the `.kts` mapping assertion |
 | 8 | five doc sites | the published count moved by one in all five |
