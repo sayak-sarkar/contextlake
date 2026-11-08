@@ -276,6 +276,8 @@ its own runs only. Without that, a rebuild by one job satisfied `schedule_full_e
 of them, and a two-minute `kb index` and a forty-minute `bootstrap` shared one median. Records
 written before the job name was recorded carry no job and count as the default job's.
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/scheduling.webp" alt="Even ripples spread across a lake at dusk while Pebble holds the glowing pebble: a scheduled job runs at a steady interval." width="1200" height="800" loading="lazy">
+
 ## The interval formula
 
 ```

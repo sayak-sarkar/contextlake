@@ -48,6 +48,8 @@ archive, which needs a compiler. The Dockerfile grammar (`[kb-dockerfile]`) has 
 archive, so on such a platform it fails to install. The remedy is in
 [The knowledge layer will not install](troubleshooting.md#the-knowledge-layer-will-not-install).
 
+<img src="https://raw.githubusercontent.com/sayak-sarkar/contextlake/main/docs/img/pebble/installing.webp" alt="Pebble on a jetty, where lines of light from several directions meet at the glowing pebble: several install routes reach the same place." width="1200" height="800" loading="lazy">
+
 ## Install
 
 <div class="tabs">
