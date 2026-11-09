@@ -12,6 +12,10 @@ WHAT IT WRITES
     docs/branding/logo-dark.webp         the logo for dark surfaces
     docs/branding/pebble-mark-dark.webp  the otter alone, for dark surfaces (footer,
                                          architecture card)
+    docs/branding/pebble-logo.webp       the logo without its wordmark: the otter, its
+    docs/branding/pebble-logo.png        pebble and the ripples, the otter's body white,
+                                         the background transparent (WebP for the web,
+                                         PNG at the source's full resolution)
     docs/img/favicon.ico                 16, 32 and 48 in one file
     docs/img/favicon-16x16.png, favicon-32x32.png
     docs/img/apple-touch-icon.png        180, full-bleed (iOS rounds it itself)
@@ -33,6 +37,14 @@ the same source it reproduces that pair to within half a level.
 
 THE MARK is the otter cut out of the logo by colour and position: the teal ripple
 strokes below the waterline and the wordmark are removed, and nothing is added.
+
+THE LOGO-ONLY VARIANT (Pebble without the wordmark, Sayak 2026-11-09: "the bg of the
+logo should be transparent", "the otter's body can be white") is cut from the dark
+matte, so the otter keeps its white fill and reads on light and dark surfaces alike,
+while the field around it is transparent. It keeps everything left of the mark's cut
+plus the ripple strokes, which run on under the "c", and drops the few faint specks of
+field grain left at the edges. The wordmark is the only thing removed; the otter, the
+pebble and the water are the logo's own pixels.
 
 THE TILE. Every icon is the dark mark on solid deepwater #0E2A33, never transparent:
 a transparent icon vanishes on a dark tab strip (BRANDING.md 2.1, 2.3). The white-filled
@@ -199,6 +211,34 @@ mw = round(mark_d.width * MARK_H / mark_d.height)
 mark_d.resize((mw, MARK_H), Image.LANCZOS).save(
     OUT / "branding/pebble-mark-dark.webp", "WEBP", quality=92, method=6, alpha_quality=100)
 print(f"  branding/pebble-mark-dark.webp  {mw}x{MARK_H}  (mark cut at x={cut_x} of {w})")
+
+
+# --- the logo without its wordmark: the otter left of the cut, plus its ripples ------
+PEBBLE_LOGO_H = 256                            # web copy; the PNG keeps the source resolution
+keep = np.zeros((h, w), bool)
+keep[:, :cut_x] = True
+keep |= ripple
+
+
+def logo_only(arr):
+    m = arr.copy()
+    m[..., 3][~keep] = 0
+    solid = m[..., 3] > 8
+    lab_, n_ = ndi.label(solid, structure=np.ones((3, 3)))
+    size = np.bincount(lab_.ravel(), minlength=n_ + 1)
+    big = np.isin(lab_, [i for i in range(1, n_ + 1) if size[i] >= 25])   # specks of grain go
+    m[..., 3][~ndi.binary_dilation(big, iterations=2)] = 0
+    img = to_img(m)
+    return img.crop(img.getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox())
+
+
+pebble_logo = logo_only(D)
+pebble_logo.save(OUT / "branding/pebble-logo.png", optimize=True)
+pw = round(pebble_logo.width * PEBBLE_LOGO_H / pebble_logo.height)
+pebble_logo.resize((pw, PEBBLE_LOGO_H), Image.LANCZOS).save(
+    OUT / "branding/pebble-logo.webp", "WEBP", quality=92, method=6, alpha_quality=100)
+print(f"  branding/pebble-logo.png  {pebble_logo.width}x{pebble_logo.height},  "
+      f"pebble-logo.webp  {pw}x{PEBBLE_LOGO_H}")
 
 
 # --- icons --------------------------------------------------------------------------

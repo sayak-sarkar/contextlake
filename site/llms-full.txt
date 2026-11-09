@@ -10619,6 +10619,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A logo-only Pebble, the logo without its wordmark: the otter with its pebble and ripples, its
+  body white and the background transparent, so it reads on light and dark surfaces.
+  `docs/branding/pebble-logo.png` is full size (707x526) and `pebble-logo.webp` is 344x256 for
+  the web. `site/tools/gen_logo_assets.py` cuts both from the logo; nothing is redrawn.
+
 ## [10.0.3] - 2026-11-09
 
 A docs-only release. The code is the same as 10.0.2. A review checked the docs, the README and
